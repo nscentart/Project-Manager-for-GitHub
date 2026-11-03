@@ -13,7 +13,7 @@ public static class Dati {
     public static string CartellaRepo;   // la scelta dell'utente, dall'archivio; vuota = non le tiene su questo computer
     public static readonly string[] FIDATI = { "github.com", "githubusercontent.com" };
 
-    static JavaScriptSerializer Json() { return new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 64 }; }
+    public static JavaScriptSerializer Json() { return new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 64 }; }
 
     public static Archivio Carica() {
         Archivio a = null;

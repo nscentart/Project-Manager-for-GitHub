@@ -1,4 +1,4 @@
-﻿# prova.ps1 (Project Manager 1.0, 03/11/2026): tutte le prove, senza rete e senza toccare i dati veri: la dogana sui testi di
+﻿# prova.ps1 (Project Manager 1.1, 03/11/2026): tutte le prove, senza rete e senza toccare i dati veri: la dogana sui testi di
 # prove\dogana, le cinque lingue, l'organizzazione, la Panoramica, gli account, la procedura guidata e l'installazione in una cartella temporanea.
 # Rosso (codice 1) se una sbaglia. Uso:  powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1 [-Exe altro.exe]
 param([string]$Exe = "")
@@ -30,6 +30,10 @@ try {
     Prova "guidata" @("--prova-guidata")
     Prova "scrittura" @("--prova-scrittura")
     Prova "installazione" @("--prova-installazione")
+    Prova "numeri" @("--prova-numeri")
+    Prova "sparite" @("--prova-sparite")
+    Prova "avviso" @("--prova-avviso")
+    Prova "riprova" @("--prova-riprova")
     Prova "repo" @("--prova-repo", "`"$qui`"")
     Write-Host "VERDE"
 } finally { Remove-Item -Recurse -Force $temp -ErrorAction SilentlyContinue }

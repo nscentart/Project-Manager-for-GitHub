@@ -96,6 +96,33 @@ public static class Accessi {
         return sparite;
     }
 
+    // quello che si perde togliendo delle repo sparite: la conferma lo dice prima. Tolte si possono solo quelle che GitHub non elenca più
+    public class Togliere { public List<string> Repo = new List<string>(); public int Testi, Decisioni, GiorniStorico; }
+
+    public static Togliere ContaTogli(Archivio a, ArchivioStorico s, IEnumerable<string> nomi) {
+        var t = new Togliere();
+        foreach (var n in nomi) {
+            var r = a.Repo.FirstOrDefault(x => x.Sparita && Uguali(x.Nome, n));
+            if (r == null || t.Repo.Contains(r.Nome)) continue;
+            t.Repo.Add(r.Nome);
+            t.GiorniStorico += Storico.QuantiGiorni(s, r.Nome);
+        }
+        var chiavi = new HashSet<string>(a.Elementi.Where(e => t.Repo.Any(n => Uguali(n, e.Repo))).Select(e => e.Chiave));
+        t.Testi = chiavi.Count;
+        t.Decisioni = a.Decisioni.Count(d => chiavi.Contains(d.Chiave));
+        return t;
+    }
+
+    public static Togliere TogliSparite(Archivio a, ArchivioStorico s, IEnumerable<string> nomi) {
+        var t = ContaTogli(a, s, nomi);
+        var chiavi = new HashSet<string>(a.Elementi.Where(e => t.Repo.Any(n => Uguali(n, e.Repo))).Select(e => e.Chiave));
+        a.Elementi.RemoveAll(e => chiavi.Contains(e.Chiave));
+        a.Decisioni.RemoveAll(d => chiavi.Contains(d.Chiave));
+        a.Repo.RemoveAll(r => r.Sparita && t.Repo.Contains(r.Nome));
+        foreach (var n in t.Repo) Storico.Togli(s, n);
+        return t;
+    }
+
     public static bool Vede(RepoInfo r, string login) { return r.Conti == null || r.Conti.Any(x => Uguali(x, login)); }
 
     static string Padrone(RepoInfo r) {

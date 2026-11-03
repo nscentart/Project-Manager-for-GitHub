@@ -1,4 +1,4 @@
-// ProvaScrittura.cs (Project Manager 1.0, 03/11/2026): --prova-scrittura prova ogni azione contro un GitHub finto su questo computer, senza rete. Il server
+// ProvaScrittura.cs (Project Manager 1.1, 03/11/2026): --prova-scrittura prova ogni azione contro un GitHub finto su questo computer, senza rete. Il server
 // finto ricorda ogni richiesta: così si controlla sia quello che parte sia quello che NON deve partire. I segreti di prova si compongono qui a pezzi,
 // così nella repo non c'è niente che somigli a una chiave vera. Le finestre si aprono fuori dallo schermo e si cliccano da dentro: niente mouse né tasti.
 using System;
@@ -21,11 +21,12 @@ public class ServerFinto : IDisposable {
         public string Metodo, Percorso, Auth, Corpo;
         public Dictionary<string, object> D { get { try { return new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.DeserializeObject(Corpo) as Dictionary<string, object> ?? new Dictionary<string, object>(); } catch (ArgumentException) { return new Dictionary<string, object>(); } } }
     }
-    public class ReleaseF { public long Id; public string Tag, Titolo = "", Note = "", Ultima; public bool Bozza; public List<KeyValuePair<string, long>> Allegati = new List<KeyValuePair<string, long>>(); }
+    public class ReleaseF { public long Id; public string Tag, Titolo = "", Note = "", Ultima; public bool Bozza; public List<KeyValuePair<string, long>> Allegati = new List<KeyValuePair<string, long>>(); public Dictionary<string, long> Scaricati = new Dictionary<string, long>(); }
     public class CommitF { public string Sha, Albero, Messaggio = "", Email = ""; public Dictionary<string, string> File; public List<string> Genitori = new List<string>(); }
     public class RamoF { public string Sha; public Dictionary<string, string> File = new Dictionary<string, string>(); }
     public class RepoF {
-        public long Id; public string Nome, Tipo = "User", Ruolo = "admin", Descrizione = "", Testa, Sito = ""; public bool Privata, Archiviata, Wiki = true; public int Commit, Stelle, Copie;
+        public long Id; public string Nome, Tipo = "User", Ruolo = "admin", Descrizione = "", Testa, Sito = ""; public bool Privata, Archiviata, Wiki = true; public int Commit, Stelle, Copie, Osservatori;
+        public Dictionary<string, object> Traffico = new Dictionary<string, object>();   // «/traffic/views» e gli altri, risposte già pronte; chi non c'è ha 403
         public Dictionary<string, string> File = new Dictionary<string, string>();
         public List<ReleaseF> Release = new List<ReleaseF>();
         public Dictionary<string, string> Persone = new Dictionary<string, string>();
@@ -40,7 +41,7 @@ public class ServerFinto : IDisposable {
         public Dictionary<string, List<string>> GenitoriDi = new Dictionary<string, List<string>>();   // per una punta che parte da altrove
         public Dictionary<string, List<object>> Elenchi = new Dictionary<string, List<object>>();      // tag, pull, commenti, segnalazioni scritte
     }
-    class Forzata { public int Codice; public string Testo; public Dictionary<string, string> Intestazioni; }
+    class Forzata { public int Codice, Volte = 1; public string Testo; public Dictionary<string, string> Intestazioni; }
 
     readonly TcpListener l = new TcpListener(IPAddress.Loopback, 0);
     readonly Dictionary<string, Forzata> forzate = new Dictionary<string, Forzata>();
@@ -118,7 +119,8 @@ public class ServerFinto : IDisposable {
 
     string NuovoCommit(RepoF r) { r.Commit++; string c = "c" + (++conta); commit[c] = "t" + (++conta); r.Testa = c; return c; }
 
-    public void Forza(string metodo, string percorso, int codice, string testo, Dictionary<string, string> intestazioni) { lock (this) forzate[metodo + " " + percorso] = new Forzata { Codice = codice, Testo = testo, Intestazioni = intestazioni }; }
+    public void Forza(string metodo, string percorso, int codice, string testo, Dictionary<string, string> intestazioni) { ForzaVolte(metodo, percorso, codice, testo, intestazioni, 1); }
+    public void ForzaVolte(string metodo, string percorso, int codice, string testo, Dictionary<string, string> intestazioni, int volte) { lock (this) forzate[metodo + " " + percorso] = new Forzata { Codice = codice, Testo = testo, Intestazioni = intestazioni, Volte = volte }; }
 
     void Gira() {
         while (!finito) {
@@ -155,10 +157,12 @@ public class ServerFinto : IDisposable {
             Registro.Add(q);
             Forzata f;
             string chiave = q.Metodo + " " + q.Percorso.Split('?')[0];
-            if (forzate.TryGetValue(chiave, out f)) { forzate.Remove(chiave); codice = f.Codice; json = f.Testo; extra = f.Intestazioni; }
+            if (forzate.TryGetValue(chiave, out f)) { if (--f.Volte <= 0) forzate.Remove(chiave); codice = f.Codice; json = f.Testo; extra = f.Intestazioni; }
             else {
                 object o;
+                link = null;
                 try { codice = Via(q, token, corpo, out o); } catch (KeyNotFoundException) { codice = 404; o = D("message", "Not Found"); }
+                if (link != null) extra = new Dictionary<string, string> { { "Link", link } };
                 json = o == null ? "" : new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Serialize(o);
             }
             if (Permessi.ContainsKey(token)) { extra = extra ?? new Dictionary<string, string>(); extra["X-OAuth-Scopes"] = Permessi[token]; }
@@ -177,13 +181,16 @@ public class ServerFinto : IDisposable {
     static object Json(RepoF r) {
         bool am = r.Ruolo == "admin", ge = am || r.Ruolo == "maintain", sc = ge || r.Ruolo == "write", tr = sc || r.Ruolo == "triage";
         return D("id", r.Id, "full_name", r.Nome, "owner", D("login", r.Nome.Split('/')[0], "type", r.Tipo), "description", r.Descrizione, "homepage", r.Sito, "has_wiki", r.Wiki, "default_branch", "main", "private", r.Privata, "archived", r.Archiviata,
-            "stargazers_count", r.Stelle, "forks_count", r.Copie, "permissions", D("admin", am, "maintain", ge, "push", sc, "triage", tr, "pull", true));
+            "stargazers_count", r.Stelle, "forks_count", r.Copie, "subscribers_count", r.Osservatori, "permissions", D("admin", am, "maintain", ge, "push", sc, "triage", tr, "pull", true));
     }
 
     object Json(ReleaseF r) {
         return D("id", r.Id, "tag_name", r.Tag, "name", r.Titolo, "body", r.Note, "draft", r.Bozza, "prerelease", false, "upload_url", UploadUrl ?? "",
-            "assets", r.Allegati.Select(a => (object)D("name", a.Key, "size", a.Value)).ToArray());
+            "assets", r.Allegati.Select(a => (object)D("name", a.Key, "size", a.Value, "download_count", r.Scaricati.ContainsKey(a.Key) ? r.Scaricati[a.Key] : 0L)).ToArray());
     }
+
+    string link;              // l'intestazione Link della risposta che si sta preparando
+    public string LinkFinto;  // se c'è, l'elenco lungo manda qui per la pagina dopo: la chiave non deve seguirlo
 
     int Via(Richiesta q, string token, byte[] dati, out object o) {
         o = D();
@@ -210,6 +217,12 @@ public class ServerFinto : IDisposable {
         if (m == "GET" && seg.Length == 4 && nascoste.TryGetValue(nomeLetto, out ancora) && ancora > 0) { nascoste[nomeLetto] = ancora - 1; o = D("message", "Not Found"); return 404; }
         var r = Repo[nomeLetto];
         string base_ = "/repos/" + r.Nome, resto = pieno.Substring(base_.Length);
+        if (m == "GET" && resto.StartsWith("/traffic/")) {
+            object t;
+            if (r.Traffico.TryGetValue(resto, out t)) { o = t; return 200; }
+            o = D("message", "Must have push access to repository");
+            return 403;
+        }
         if (resto == "") {
             if (m == "GET") { o = Json(r); return 200; }
             if (m == "DELETE") {
@@ -304,7 +317,14 @@ public class ServerFinto : IDisposable {
         }
         if (resto == "/releases/latest") { var u = r.Release.LastOrDefault(x => x.Ultima == "true"); if (u == null) { o = D("message", "Not Found"); return 404; } o = Json(u); return 200; }
         if (resto == "/releases") {
-            if (m == "GET") { o = Pagina(q, r.Release.Select(x => Json(x))); return 200; }
+            if (m == "GET") {
+                o = Pagina(q, r.Release.Select(x => Json(x)));
+                // come GitHub, l'elenco lungo dice dov'è la pagina dopo
+                var mper = Regex.Match(q.Percorso, @"[?&]per_page=(\d+)"); var mpag = Regex.Match(q.Percorso, @"[?&]page=(\d+)");
+                int pag = mpag.Success ? int.Parse(mpag.Groups[1].Value) : 1;
+                if (mper.Success && pag * int.Parse(mper.Groups[1].Value) < r.Release.Count) link = LinkFinto ?? ("<http://127.0.0.1:" + Porta + "/repos/" + r.Nome + "/releases?per_page=" + mper.Groups[1].Value + "&page=" + (pag + 1) + ">; rel=\"next\"");
+                return 200;
+            }
             string tag = Convert.ToString(d["tag_name"]);
             if (r.Release.Any(x => x.Tag == tag)) { o = D("message", "Validation Failed", "errors", new object[] { D("resource", "Release", "code", "already_exists", "field", "tag_name") }); return 422; }
             var n = new ReleaseF { Id = ++conta, Tag = tag, Titolo = Convert.ToString(d["name"]), Note = Convert.ToString(d["body"]), Bozza = d.ContainsKey("draft") && (bool)d["draft"] };
@@ -314,7 +334,8 @@ public class ServerFinto : IDisposable {
         }
         var mr = Regex.Match(resto, @"^/releases/(\d+)(/assets)?$");
         if (mr.Success) {
-            var x = r.Release.First(z => z.Id == long.Parse(mr.Groups[1].Value));
+            var x = r.Release.FirstOrDefault(z => z.Id == long.Parse(mr.Groups[1].Value));
+            if (x == null) { o = D("message", "Not Found"); return 404; }
             if (mr.Groups[2].Success) {
                 string nome = Uri.UnescapeDataString(q.Percorso.Substring(q.Percorso.IndexOf("name=") + 5));
                 x.Allegati.Add(new KeyValuePair<string, long>(nome, dati.Length));
@@ -1696,8 +1717,14 @@ public static class ProvaScrittura {
                 v("pubblica come ultima: dice allegati e l'ultima di adesso, vuole il nome", k2.Racconto.Text.Contains("programma.exe") && k2.Racconto.Text.Contains("v1.0") && !k2.BSi.Enabled && k2.AcceptButton == null);
                 k2.Nome.Text = k2.Visti.Nome; k2.BSi.PerformClick();
             });
+            // subito dopo «Rendi pubblica» GitHub può dire 404 sul pubblicare: la finestra vera riprova da sola
+            int attesaPubblica = Scrittura.AttesaPubblicaMs;
+            Scrittura.AttesaPubblicaMs = 1;
+            s.Forza("PATCH", "/repos/" + re.Nome + "/releases/" + r3.Id, 404, "{\"message\":\"Not Found\"}", null);
             fre.BUltima.PerformClick();
+            Scrittura.AttesaPubblicaMs = attesaPubblica;
             v("pubblica come ultima dalla finestra", !r3.Bozza && r3.Ultima == "true");
+            v("un 404 subito dopo «Rendi pubblica»: riprova da sola, due volte in tutto", s.Di("PATCH", "/repos/" + re.Nome + "/releases/" + r3.Id).Count == 2);
             Finche(() => !fre.Lavorando && fre.Righe.Items.Count > 0);
             fre.Righe.Items.Cast<ListViewItem>().First(x => ((ReleaseInfo)x.Tag).Tag == "v3.0").Selected = true;
             Application.DoEvents();

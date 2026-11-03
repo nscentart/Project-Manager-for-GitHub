@@ -2,15 +2,17 @@
 
 **English** | [Italiano](README.it.md) | [Français](README.fr.md) | [Español](README.es.md) | [Deutsch](README.de.md)
 
-A Windows program for managing your GitHub repos from its buttons, without knowing Git: create and change repos, upload a folder, publish releases, choose who works on them. It also reads what arrives on your repos (issues, comments, pull requests and the error-log reports from WeightMonitor), holds back suspicious text before you act on it, and prepares the work for a Claude Code chat.
+A Windows program for managing your GitHub repos from its buttons, without knowing Git: create and change repos, upload a folder, publish releases, choose who works on them. It also reads what arrives on your repos (issues, comments, pull requests and the error-log reports from WeightMonitor), holds back suspicious text before you act on it, and prepares the work for a Claude Code chat. It also shows how each repo is going: views, downloads, where people come from.
 
 **The program speaks Italian, English, French, Spanish and German.** You choose the language the first time you open it and can change it at any time in **Settings**.
 
 Not affiliated with or endorsed by GitHub.
 
+[Website and license](https://www.nscent.art/en/software)
+
 ## [Download Project Manager](https://github.com/nscentart/Project-Manager-for-GitHub/releases/latest/download/ProjectManager.exe)
 
-The SHA-256 fingerprint of the file is in the notes on the [Releases](https://github.com/nscentart/Project-Manager-for-GitHub/releases) page. The program does not update itself: to update it, download the file again.
+The SHA-256 fingerprint of the file is in the notes on the [Releases](https://github.com/nscentart/Project-Manager-for-GitHub/releases) page. It never updates itself: it tells you, and you decide.
 
 ![The program window, in English, with example data](docs/finestra.png)
 
@@ -27,7 +29,26 @@ There is only one file: `ProjectManager.exe`. Open it and choose **Install** or 
 
 **Windows warnings.** The exe has no Windows code-signing certificate, because of the cost. SmartScreen may show "Windows protected your PC": continue with "More info", then "Run anyway". With Smart App Control turned on, Windows may block it entirely, and we cannot promise that no antivirus will ever flag it. You can read the code or compile it yourself.
 
-**To check the downloaded file**, run this in PowerShell and compare the result with the fingerprint in the release notes: `Get-FileHash ProjectManager.exe -Algorithm SHA256`. A match tells you the file is the one that was published, not that it is free of bugs.
+## Updating
+
+Project Manager never downloads or installs anything by itself. It only checks: 20 seconds after it starts, it asks GitHub once, without your key, whether there is a newer version. If there is, a window shows the new version, yours, the file's SHA-256 fingerprint (if the file's and the one in the notes don't match, it tells you not to use it) and the release notes, with three buttons: **Skip this version**, **Later** and **Open the version page**. If GitHub does not answer, the program doesn't bother you and writes a line in its log.
+
+**Open the version page** opens the version's page on GitHub in your browser, where you can see what changed and compare the code with the previous version. Whatever GitHub's answer says, the browser only ever opens a page of the official repo. To update:
+
+1. From that page, download `ProjectManager.exe` into a new, empty folder.
+2. Close Project Manager, open the downloaded file and choose **Install**: it takes the place of the old version and restarts. Your accounts and data stay. If the program is still open, the file tells you to close it first.
+
+If you use the copy without installing, just use the new exe instead of the old one.
+
+You can turn the check off in **Settings**, under **New versions**. **Check now**, in the same place, always answers, even with the check off or for a version you skipped. With the check off, the latest version is still at the download link at the top of this page.
+
+## How to verify the file
+
+1. Download it only from this page: it is the only official Project Manager.
+2. Open PowerShell in the file's folder and type: `Get-FileHash .\ProjectManager.exe -Algorithm SHA256`
+3. The result must be identical to the SHA-256 fingerprint written in the release notes.
+
+If it is identical, you have the file we published. That does not prove it is free of bugs: for that there is the code, which you can read here.
 
 ## First start and accounts
 
@@ -59,8 +80,28 @@ The limits, stated plainly:
 4. **To work on**: texts that passed the check or that you approved, sorted into logs, bugs, requests, questions, reviews, pull requests and others. Summaries with Ollama (a model on your own computer, free and offline) start only from their button and only on these texts, and the answer goes through the check too.
 5. **Recurring errors**: log lines grouped by signature (numbers and paths removed), showing how many reports, how many times and which versions.
 6. **Package for Claude Code**: one `.md` per repo in `pacchetti\`, also copied to the clipboard only when it is for a single public repo. External texts sit in `text` blocks, declared as data and not as instructions, and anything that looks like a key is masked.
-7. **Repo panel**: on the left, your repos labelled private or public. On the right, for each one, **Overview** in plain words (version, who can see it, collaborators, license, README, reports, with **What's missing** at the top) and the tabs above. **All repos** sums everything up in a table. The Ollama model, the trusted sites and the language are in **Settings**. The **Following reports** switch at the top shows whether you follow the reports of that repo.
+7. **Repo panel**: on the left, your repos labelled private or public. On the right, for each one, **Overview** in plain words (version, who can see it, collaborators, license, README, reports, with **What's missing** at the top) and the tabs above. At the top of **Overview** there is **How it's going**, described below. **All repos** sums everything up in a table. The Ollama model, the trusted sites and the language are in **Settings**. The **Following reports** switch at the top shows whether you follow the reports of that repo.
 8. **Manage**: the tab with the buttons for working on GitHub, described below.
+
+## How it's going
+
+At every **Update from GitHub**, for each repo your key can read, the program reads views, clones, where people come from, the most viewed pages, downloads per version, stars, forks and watchers. **All repos** lists them in a table: Repo, Who sees it, Version, Views (14 days), Downloads, Stars, Reports to read, Errors. On a repo's page, **How it's going** sums them up in one sentence, with views and downloads day by day; the usual cards stay below it.
+
+If GitHub refuses one of these numbers (it shows traffic only to people who can write to the repo), the program says "not available" and why: it never shows a 0 for a number it did not read. An error on these numbers does not stop the rest of the reading.
+
+GitHub keeps traffic for 14 days. So each repo's views, unique visitors, clones and download total are saved day by day in `storico.json`, on this computer only: older days stay there and nowhere else.
+
+The limits, stated plainly:
+
+- GitHub says how many people came by, not who.
+- The numbers arrive a few hours late.
+- Downloads from the website and from GitHub are counted together, and include your own.
+- "People" is the 14-day total given by GitHub: daily unique visitors can't be added up.
+- GitHub only gives the download total: downloads day by day start from when the program first reads it.
+
+## Repos that are gone
+
+A repo that GitHub no longer lists moves into a closed group at the bottom, **Gone (N)**, on the left and in the table: one click opens it. **Remove from the list**, on its page, takes it off; **Remove all**, in the group, does so for all the gone repos you can see (those of another account stay). The confirmation says that nothing changes on GitHub and how many downloaded texts, decisions and days of history this computer loses. If a repo comes back on GitHub, it returns by itself at the next update.
 
 ## Managing repos
 
@@ -91,7 +132,7 @@ The safeguards:
 
 ## Data
 
-In `%LOCALAPPDATA%\ProjectManager` (or the folder in the `GPM_DATI` variable): `archivio.json` (a copy of the issues, your decisions, summaries, trusted sites, connected accounts without their keys, the repos folder), `lingua.txt` (the language you chose), `licenza.txt` if you added a license, `pacchetti\` and the program's log. An archive from an earlier version stays valid: the account you used before keeps using Git's sign-in.
+In `%LOCALAPPDATA%\ProjectManager` (or the folder in the `GPM_DATI` variable): `archivio.json` (a copy of the issues, your decisions, summaries, trusted sites, connected accounts without their keys, the repos folder), `lingua.txt` (the language you chose), `storico.json` (the numbers day by day: if it gets damaged, the program sets it aside and starts a new one), `licenza.txt` if you added a license, `pacchetti\` and the program's log. An archive from an earlier version stays valid: the account you used before keeps using Git's sign-in.
 
 ## Build and test
 
@@ -104,7 +145,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1
 
 `compila.ps1` uses the .NET Framework 4 csc that already comes with Windows (C# 5), with no third-party libraries.
 
-`prova.ps1` runs the texts in `prove\dogana` through the customs check (the first line says `ATTESO: pulito`, expected clean, or `ATTESO: sospetto`, expected suspicious) and turns red if even one is wrong. A new trick seen in the wild gets a test case here first: you watch it go red, then fix the check. The other tests (languages, organizations, accounts, setup, writes to a fake GitHub, installation, license) use fake data and temporary folders: they stay off the network and leave the installed program and your real data alone.
+`prova.ps1` runs the texts in `prove\dogana` through the customs check (the first line says `ATTESO: pulito`, expected clean, or `ATTESO: sospetto`, expected suspicious) and turns red if even one is wrong. A new trick seen in the wild gets a test case here first: you watch it go red, then fix the check. The other tests (languages, organizations, accounts, setup, writes to a fake GitHub, installation, license, numbers, gone repos, new-version notice, retry after publishing) use fake data and temporary folders: they stay off the network and leave the installed program and your real data alone.
 
 ## License
 

@@ -16,6 +16,11 @@ public class ErroreScrittura : Exception {
     public ErroreScrittura(string testo, List<Riscontro> riscontri) : base(testo) { Riscontri = riscontri; }
 }
 
+// chi aspetta ha premuto Annulla
+public class ControlloFermato : ErroreScrittura {
+    public ControlloFermato(string testo) : base(testo) { }
+}
+
 public class Risposta {
     public int Codice;
     public object Json;
@@ -991,9 +996,58 @@ public static class Scrittura {
     }
 
     // comeUltima: diventa la «Latest», quella di cui si fidano gli aggiornamenti automatici
-    public static void Pubblica(Cliente c, FattiRepo visti, string scritto, long id, bool comeUltima) {
+    public static int TentativiPubblica = 6, AttesaPubblicaMs = 20000;
+
+    // subito dopo «Rendi pubblica» GitHub può rispondere 404 per un po': è successo davvero, su due repo. Si riprova da soli, e alla
+    // fine si dice quello che è vero dopo aver riletto, non l'ultimo errore. passo dice a che punto è, e può fermare (vedi Conferma.Passo);
+    // controlla può fermare subito prima della scrittura (vedi Conferma.Controlla)
+    public static void PubblicaConRiprova(Cliente c, FattiRepo visti, string scritto, long id, bool comeUltima, Action<string> passo, Action controlla = null) {
+        bool tentato = false, mancava = false;
+        try {
+            for (int i = 1; i <= TentativiPubblica; i++) {
+                try {
+                    // il tentativo di prima può essere arrivato anche se la risposta diceva di no
+                    if (i > 1 && !UnaRelease(c, visti, id).Bozza) return;
+                    Pubblica(c, visti, scritto, id, comeUltima, () => { if (controlla != null) controlla(); tentato = true; });
+                    return;
+                } catch (ErroreScrittura e) { if (e.Codice != 404) throw; }
+                if (i == TentativiPubblica) break;
+                // cancellata da altri: due letture di fila che non la trovano bastano, una sola può essere GitHub che non è ancora pronto
+                bool manca = Manca(c, visti, id);
+                if (manca && mancava) throw new ErroreScrittura(Lingua.T("scrittura.pubblica_non_c_piu"));
+                mancava = manca;
+                for (int resta = AttesaPubblicaMs; resta > 0; resta -= 1000) {
+                    int sec = (resta + 999) / 1000;
+                    passo(manca ? Lingua.T("scrittura.pubblica_riprovo_release", "sec", sec) : Lingua.T("scrittura.pubblica_riprovo", "n", i + 1, "tot", TentativiPubblica, "sec", sec));
+                    System.Threading.Thread.Sleep(Math.Min(1000, resta));
+                }
+            }
+        } catch (ControlloFermato) {
+            // se un tentativo è partito, «non ho fatto niente» si può dire solo dopo aver riletto
+            if (!tentato) throw;
+            ReleaseInfo letta;
+            try { letta = UnaRelease(c, visti, id); }
+            catch (ErroreScrittura) { throw new ErroreScrittura(Lingua.T("scrittura.pubblica_non_so")); }
+            if (letta.Bozza) throw new ErroreScrittura(Lingua.T("scrittura.pubblica_fermata_bozza"));
+            return;
+        }
+        List<ReleaseInfo> tutte;
+        try { tutte = Release(c, visti); }
+        catch (ErroreScrittura e) { if (e.Codice != 404) throw; throw new ErroreScrittura(tentato ? Lingua.T("scrittura.pubblica_non_so") : Lingua.T("scrittura.pubblica_github_non_trova")); }
+        var ora = tutte.FirstOrDefault(x => x.Id == id);
+        if (ora == null) throw new ErroreScrittura(Lingua.T("scrittura.pubblica_non_c_piu"));
+        if (ora.Bozza) throw new ErroreScrittura(Lingua.T("scrittura.pubblica_ancora_bozza"));
+    }
+
+    static bool Manca(Cliente c, FattiRepo visti, long id) {
+        try { return !Release(c, visti).Any(x => x.Id == id); }
+        catch (ErroreScrittura) { return false; }   // non si è potuto leggere: non si sa
+    }
+
+    public static void Pubblica(Cliente c, FattiRepo visti, string scritto, long id, bool comeUltima, Action primaDiScrivere = null) {
         var f = Riconferma(c, visti, scritto, Azione.Release);
         if (!UnaRelease(c, f, id).Bozza) throw new ErroreScrittura(Lingua.T("scrittura.questa_release_gia_pubblicata"));
+        if (primaDiScrivere != null) primaDiScrivere();
         c.Chiama("PATCH", "/repos/" + f.Nome + "/releases/" + id, D("draft", false, "make_latest", comeUltima ? "true" : "false"));
     }
 

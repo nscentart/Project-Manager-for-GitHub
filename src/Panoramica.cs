@@ -8,7 +8,9 @@ using System.Text;
 using System.Windows.Forms;
 
 public class PaginaPanoramica : Panel {
-    public class Conti { public int Quarantena, Lavorare, Errori, Consegne = -1; }
+    public class Conti { public int Quarantena, Lavorare, Errori, Consegne = -1, NuoveSegnalazioni, NuoviCommenti; }
+    public class Cella { public string Testo; public Color Colore; }
+    public enum Tasto { Nessuno, Gruppo, TogliTutte, TogliQuesta }
 
     class Carta {
         public string Titolo, Grande, Frase, Avviso;
@@ -25,7 +27,16 @@ public class PaginaPanoramica : Panel {
     int alto;
     readonly List<KeyValuePair<Rectangle, RepoInfo>> righe = new List<KeyValuePair<Rectangle, RepoInfo>>();
     RepoInfo sopra;
+    bool spariteAperte;
+    Func<string, List<GiornoStorico>> storicoDi = n => new List<GiornoStorico>();
+    List<GiornoStorico> giorni = new List<GiornoStorico>();
+    readonly List<KeyValuePair<Rectangle, Tasto>> tasti = new List<KeyValuePair<Rectangle, Tasto>>();
+    readonly List<KeyValuePair<Rectangle, string>> barre = new List<KeyValuePair<Rectangle, string>>();
+    readonly ToolTip suggerimento = new ToolTip();
+    Tasto sopraTasto;
+    string sopraBarra;
     public event Action<RepoInfo> RepoScelta;
+    public event Action GruppoCliccato, TogliTutte, TogliQuesta;
 
     static int S(int v) { return Aspetto.S(v); }
 
@@ -34,9 +45,10 @@ public class PaginaPanoramica : Panel {
         AutoScroll = true; BackColor = Aspetto.FONDINO;
     }
 
-    public void Imposta(RepoInfo r, List<RepoInfo> tutte, string chi, Func<string, Conti> quanti, bool nonAggiornato) {
+    public void Imposta(RepoInfo r, List<RepoInfo> tutte, string chi, Func<string, Conti> quanti, bool nonAggiornato, bool aperte, Func<string, List<GiornoStorico>> storico) {
         bool altra = r != repo;
-        repo = r; elenco = tutte; login = chi ?? ""; conti = quanti; archivioVecchio = nonAggiornato;
+        repo = r; elenco = tutte; login = chi ?? ""; conti = quanti; archivioVecchio = nonAggiornato; spariteAperte = aperte; storicoDi = storico;
+        giorni = r == null ? new List<GiornoStorico>() : storico(r.Nome);
         if (altra) AutoScrollPosition = Point.Empty;
         Misura();
         Invalidate();
@@ -54,20 +66,63 @@ public class PaginaPanoramica : Panel {
     protected override void OnPaint(PaintEventArgs e) {
         e.Graphics.Clear(BackColor);
         alto = AutoScrollPosition.Y;
-        righe.Clear();
+        righe.Clear(); tasti.Clear(); barre.Clear();
         Scena(e.Graphics, true);
     }
 
     protected override void OnMouseMove(MouseEventArgs e) {
         base.OnMouseMove(e);
         RepoInfo s = null;
-        foreach (var kv in righe) if (kv.Key.Contains(e.Location)) s = kv.Value;
-        if (s != sopra) { sopra = s; Cursor = s != null ? Cursors.Hand : Cursors.Default; Invalidate(); }
+        var t = TastoSotto(e.Location);
+        if (t == Tasto.Nessuno) foreach (var kv in righe) if (kv.Key.Contains(e.Location)) s = kv.Value;
+        if (s != sopra || t != sopraTasto) { sopra = s; sopraTasto = t; Cursor = s != null || t != Tasto.Nessuno ? Cursors.Hand : Cursors.Default; Invalidate(); }
+        string b = null;
+        foreach (var kv in barre) if (kv.Key.Contains(e.Location)) b = kv.Value;
+        if (b != sopraBarra) { sopraBarra = b; if (b == null) suggerimento.Hide(this); else suggerimento.Show(b, this, e.X + S(12), e.Y + S(12), 4000); }
     }
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); if (sopra != null) { sopra = null; Invalidate(); } }
-    protected override void OnMouseClick(MouseEventArgs e) {
-        base.OnMouseClick(e);
-        foreach (var kv in righe) if (kv.Key.Contains(e.Location) && RepoScelta != null) { RepoScelta(kv.Value); return; }
+    protected override void OnMouseLeave(EventArgs e) {
+        base.OnMouseLeave(e);
+        if (sopraBarra != null) { sopraBarra = null; suggerimento.Hide(this); }
+        if (sopra != null || sopraTasto != Tasto.Nessuno) { sopra = null; sopraTasto = Tasto.Nessuno; Invalidate(); }
+    }
+    protected override void OnMouseClick(MouseEventArgs e) { base.OnMouseClick(e); Clic(e.Location); }
+
+    Tasto TastoSotto(Point p) {
+        var t = Tasto.Nessuno;
+        foreach (var kv in tasti) if (kv.Key.Contains(p)) t = kv.Value;   // «Togli tutte» sta sopra la riga del gruppo: vince l'ultimo disegnato
+        return t;
+    }
+
+    // il clic, anche per le prove: lì non c'è il mouse
+    public void Clic(Point p) {
+        var t = TastoSotto(p);
+        if (t == Tasto.Gruppo) { if (GruppoCliccato != null) GruppoCliccato(); return; }
+        if (t == Tasto.TogliTutte) { if (TogliTutte != null) TogliTutte(); return; }
+        if (t == Tasto.TogliQuesta) { if (TogliQuesta != null) TogliQuesta(); return; }
+        foreach (var kv in righe) if (kv.Key.Contains(p) && RepoScelta != null) { RepoScelta(kv.Value); return; }
+    }
+
+    // dov'è un tasto, dopo l'ultimo disegno; per le prove
+    public Rectangle ZonaDi(Tasto t) {
+        foreach (var kv in tasti) if (kv.Value == t) return kv.Key;
+        return Rectangle.Empty;
+    }
+    public List<string> NomiInTabella() { return righe.Select(x => x.Value.Nome).ToList(); }
+
+    // per le prove: il testo delle carte della repo scelta, una stringa per carta
+    public List<string> CartePerProva() { return Carte().Select(x => x.Titolo + " | " + x.Grande + " | " + x.Frase + " | " + string.Join(" | ", x.Righe.Select(r => string.Join(": ", r)))).ToList(); }
+
+    // per le prove: le scritte di «Come sta andando» e del gruppo per la repo scelta, in tutte le loro forme
+    public List<string> Disegnate() {
+        var n = repo != null ? repo.Numeri : null;
+        var l = new List<string> { Lingua.T("numeri.titolo"), Lingua.T("numeri.limiti"), Lingua.T("numeri.titolo_fonti"), Lingua.T("numeri.titolo_pagine"), Lingua.T("numeri.titolo_novita"), Lingua.T("numeri.titolo_visite_giorno"), Lingua.T("numeri.titolo_download_giorno"), Lingua.T("numeri.titolo_versioni"),
+            Lingua.T("sparite.togli_tutte"), Lingua.T("sparite.togli_dall_elenco"), Lingua.T("sparite.frase_pagina"), Lingua.T("numeri.non_ancora_letti"), Lingua.T("numeri.nessun_dato"), Lingua.T("numeri.download_da_adesso"), Lingua.T("numeri.nessuna_versione"), Lingua.T("numeri.non_segui"), Lingua.T("numeri.niente_di_nuovo"),
+            Lingua.T("numeri.didascalia_visite"), Lingua.T("numeri.didascalia_persone"), Lingua.T("numeri.didascalia_cloni"), Lingua.T("numeri.didascalia_download"), Lingua.T("numeri.didascalia_stelle"), Lingua.T("numeri.didascalia_copie"), Lingua.T("numeri.didascalia_osservatori"), Lingua.T("numeri.pagina_della_repo") };
+        l.AddRange(COLONNE);
+        l.Add(FraseNumeri(n, 3));
+        l.AddRange(AvvisiNumeri(n));
+        l.AddRange(Novita(n, new Conti { NuoveSegnalazioni = 2, NuoviCommenti = 1 }, DateTime.UtcNow.ToString("yyyy-MM-dd")));
+        return l;
     }
 
     // ---------- le parole ----------
@@ -294,6 +349,8 @@ public class PaginaPanoramica : Panel {
         }
         var nonLetti = NonLetti(p).Select(x => Lingua.T("panoramica.non_ho_potuto_leggere", "testo", x)).ToList();
         y = Striscia(g, dis, m, y, w, titolo, sotto, chip, nonLetti, chip.Count == 0 && sotto == null ? Aspetto.LIME : Aspetto.TESTO, punto) + S(14);
+        if (repo.Sparita) y = RigaTogli(g, dis, m, y, w) + S(14);
+        if (repo.Numeri != null || !repo.Sparita) y = Riquadro(g, dis, m, y, w) + S(14);
 
         var carte = Carte();
         if (repo.Sparita && p == null) carte = carte.GetRange(carte.Count - 1, 1);   // sparita prima di essere letta: restano solo i testi
@@ -401,28 +458,20 @@ public class PaginaPanoramica : Panel {
 
     // ---------- Tutte le repo ----------
 
-    static string[] COLONNE { get { return new[] { Lingua.T("comune.repo"), Lingua.T("comune.chi_vede"), Lingua.T("panoramica.versione"), Lingua.T("panoramica.commit_dopo_release"), Lingua.T("comune.licenza"), Lingua.T("panoramica.persone"), Lingua.T("panoramica.quarantena_2"), Lingua.T("comune.lavorare"), Lingua.T("panoramica.errori") }; } }
-    static readonly int[] PESI = { 23, 9, 8, 10, 20, 8, 8, 8, 6 };
+    public static string[] COLONNE { get { return new[] { Lingua.T("comune.repo"), Lingua.T("comune.chi_vede"), Lingua.T("panoramica.versione"), Lingua.T("numeri.colonna_visite"), Lingua.T("numeri.colonna_download"), Lingua.T("numeri.colonna_stelle"), Lingua.T("numeri.colonna_da_leggere"), Lingua.T("panoramica.errori") }; } }
+    public static readonly int[] PESI = { 25, 9, 9, 13, 11, 9, 13, 8 };
 
     int SceneTutte(Graphics g, bool dis, int m, int y, int w) {
         var vive = elenco.Where(r => !r.Sparita).ToList();
-        int spar = elenco.Count - vive.Count;
-        Func<RepoInfo, bool> senzaRel = r => r.Pannello != null && r.Pannello.ReleaseLetta && string.IsNullOrEmpty(r.Pannello.ReleaseTag);
-        Func<RepoInfo, bool> senzaLic = r => r.Pannello != null && r.Pannello.LicenzaLetta && string.IsNullOrEmpty(r.Pannello.Licenza);
-        Func<RepoInfo, bool> senzaRea = r => r.Pannello != null && r.Pannello.ReadmeLetto && !r.Pannello.Readme;
-        var chip = new List<string>();
-        Action<int, string> conta = (n, chiave) => { if (n > 0) chip.Add(Lingua.N(chiave, n)); };
-        conta(vive.Count(senzaRel), "panoramica.senza_release");
-        conta(vive.Count(senzaLic), "panoramica.senza_licenza");
-        conta(vive.Count(senzaRea), "panoramica.senza_readme");
-        conta(elenco.Sum(r => Math.Max(0, conti(r.Nome).Consegne)), "panoramica.consegne");
-        conta(elenco.Sum(r => conti(r.Nome).Quarantena), "panoramica.testi_quarantena");
-        conta(elenco.Sum(r => conti(r.Nome).Errori), "panoramica.errori");
+        var fuori = elenco.Where(r => r.Sparita).ToList();
+        int spar = fuori.Count;
+        var chip = Problemi(vive, elenco, conti);
         string titolo = Lingua.N("panoramica.su_github", vive.Count) + (spar > 0 ? ", " + Lingua.N("comune.sparite", spar) : "");
         var daLeggere = DaLeggere(vive);
-        y = Striscia(g, dis, m, y, w, titolo, FraseTutte(vive.Count, chip.Count, daLeggere), chip, daLeggere, Aspetto.TESTO, Aspetto.AMBRA) + S(14);
+        var grigi = daLeggere.Concat(NumeriMancanti(vive)).ToList();
+        y = Striscia(g, dis, m, y, w, titolo, FraseTutte(vive.Count, chip.Count, daLeggere), chip, grigi, Aspetto.TESTO, Aspetto.AMBRA) + S(14);
 
-        int aTesta = S(44), aRiga = S(66), hTab = aTesta + aRiga * elenco.Count;
+        int aTesta = S(44), aRiga = S(66), aGruppo = S(48), hTab = aTesta + aRiga * (vive.Count + (spariteAperte ? spar : 0)) + (spar > 0 ? aGruppo : 0);
         if (dis) {
             Aspetto.Carta(g, new Rectangle(m, y, w, hTab), S(10), Color.White, Aspetto.BORDO);
             int pad = S(14), lu = w - pad * 2, sp = PESI.Sum();
@@ -434,21 +483,65 @@ public class PaginaPanoramica : Panel {
                 TextRenderer.DrawText(g, COLONNE[i], Aspetto.PICCOLO_F, new Rectangle(xs[i], y, xs[i + 1] - xs[i] - S(8), aTesta), Aspetto.GRIGIO,
                     TextFormatFlags.NoPadding | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.TextBoxControl);
             int yy = y + aTesta;
-            using (var n = new Pen(Color.FromArgb(235, 237, 241)))
-                foreach (var r in elenco) {
+            using (var n = new Pen(Color.FromArgb(235, 237, 241))) {
+                Action<RepoInfo> riga = r => {
                     var zona = new Rectangle(m + 1, yy, w - 2, aRiga);
                     righe.Add(new KeyValuePair<Rectangle, RepoInfo>(zona, r));
                     if (r == sopra) using (var b = new SolidBrush(Aspetto.FONDINO)) g.FillRectangle(b, zona);
                     g.DrawLine(n, m + 1, yy, m + w - 2, yy);
                     RigaTabella(g, r, xs, yy, aRiga);
                     yy += aRiga;
+                };
+                foreach (var r in vive) riga(r);
+                if (spar > 0) {
+                    var zona = new Rectangle(m + 1, yy, w - 2, aGruppo);
+                    tasti.Add(new KeyValuePair<Rectangle, Tasto>(zona, Tasto.Gruppo));
+                    if (sopraTasto == Tasto.Gruppo) using (var b = new SolidBrush(Aspetto.FONDINO)) g.FillRectangle(b, zona);
+                    g.DrawLine(n, m + 1, yy, m + w - 2, yy);
+                    Freccia(g, xs[0], yy + aGruppo / 2, spariteAperte, Aspetto.GRIGIO);
+                    Aspetto.T(g, Lingua.T("sparite.gruppo", "n", Lingua.Numero(spar)), Aspetto.FORTE, xs[0] + S(18), yy, S(240), aGruppo, Aspetto.GRIGIO);
+                    TastoDisegnato(g, Lingua.T("sparite.togli_tutte"), m + w - pad, yy + (aGruppo - S(30)) / 2, S(30), Tasto.TogliTutte, true);
+                    yy += aGruppo;
+                    if (spariteAperte) foreach (var r in fuori) riga(r);
                 }
+            }
         }
         return y + hTab + S(20);
     }
 
+    // le scritte in testa alla tabella: quello che manca su GitHub e quello che aspetta qui
+    public static List<string> Problemi(List<RepoInfo> vive, List<RepoInfo> tutte, Func<string, Conti> quanti) {
+        Func<RepoInfo, bool> senzaRel = r => r.Pannello != null && r.Pannello.ReleaseLetta && string.IsNullOrEmpty(r.Pannello.ReleaseTag);
+        Func<RepoInfo, bool> conDopo = r => r.Pannello != null && r.Pannello.ReleaseLetta && !string.IsNullOrEmpty(r.Pannello.ReleaseTag) && r.Pannello.CommitDopo > 0;
+        Func<RepoInfo, bool> senzaLic = r => r.Pannello != null && r.Pannello.LicenzaLetta && string.IsNullOrEmpty(r.Pannello.Licenza);
+        Func<RepoInfo, bool> senzaRea = r => r.Pannello != null && r.Pannello.ReadmeLetto && !r.Pannello.Readme;
+        var chip = new List<string>();
+        Action<int, string> conta = (n, chiave) => { if (n > 0) chip.Add(Lingua.N(chiave, n)); };
+        conta(vive.Count(senzaRel), "panoramica.senza_release");
+        conta(vive.Count(conDopo), "panoramica.con_commit_dopo");
+        conta(vive.Count(senzaLic), "panoramica.senza_licenza");
+        conta(vive.Count(senzaRea), "panoramica.senza_readme");
+        conta(tutte.Sum(r => Math.Max(0, quanti(r.Nome).Consegne)), "panoramica.consegne");
+        conta(tutte.Sum(r => quanti(r.Nome).Quarantena), "panoramica.testi_quarantena");
+        conta(tutte.Sum(r => quanti(r.Nome).Errori), "panoramica.errori");
+        return chip;
+    }
+
+    // le repo su cui GitHub non ha dato i numeri: in grigio, perché non è una cosa da sistemare
+    public static List<string> NumeriMancanti(IEnumerable<RepoInfo> vive) {
+        int n = vive.Count(r => r.Numeri != null && (!r.Numeri.VisiteLette || !r.Numeri.DownloadLetti));
+        return n > 0 ? new List<string> { Lingua.N("numeri.repo_senza_numeri", n) } : new List<string>();
+    }
+
+    // un numero nella tabella: mai letto non è uno 0; se la lettura di stavolta è fallita resta il numero di prima, in ambra
+    public static Cella CellaNumero(NumeriRepo n, bool letto, string errore, long valore) {
+        if (n == null) return new Cella { Testo = Lingua.T("panoramica.non_letto"), Colore = Aspetto.GRIGIO };
+        if (!letto) return new Cella { Testo = errore != null ? Lingua.T("numeri.non_disponibile") : Lingua.T("panoramica.non_letto"), Colore = Aspetto.GRIGIO };
+        return new Cella { Testo = Lingua.Numero(valore), Colore = errore != null ? Aspetto.AMBRA_S : Aspetto.INCHIOSTRO };
+    }
+
     void RigaTabella(Graphics g, RepoInfo r, int[] xs, int y, int h) {
-        var p = r.Pannello; var c = conti(r.Nome);
+        var p = r.Pannello; var c = conti(r.Nome); var d = r.Numeri;
         Action<int, string, Color> cel = (i, s, col) => Aspetto.T(g, s, Aspetto.NORMALE, xs[i], y, xs[i + 1] - xs[i] - S(8), h, col);
         Color ink = Aspetto.INCHIOSTRO, gr = Aspetto.GRIGIO, am = Aspetto.AMBRA_S;
         int wn = xs[1] - xs[0] - S(8);
@@ -457,16 +550,278 @@ public class PaginaPanoramica : Panel {
         string sotto = r.Sparita ? Lingua.T("comune.non_c_piu_github") : !r.Seguita ? Lingua.T("comune.non_seguita") : p == null || !p.CommitLetto ? "" : string.IsNullOrEmpty(p.UltimoCommit) ? Lingua.T("panoramica.vuota_nessun_commit") : Lingua.T("panoramica.ultimo_commit", "ultimocommit", Data(p.UltimoCommit));
         Aspetto.T(g, sotto, Aspetto.PICCOLO, xs[0], y + S(45), wn, S(17), r.Sparita ? am : gr);
         Aspetto.Pillola(g, r.Privata ? Lingua.T("comune.privata") : Lingua.T("comune.pubblica"), Aspetto.PICCOLO_F, xs[1], y + (h - S(20)) / 2, S(20), r.Privata ? Aspetto.FONDINO : Aspetto.VERDE_T, r.Privata ? gr : Aspetto.VERDE_S);
-        if (r.Sparita && p == null) { cel(2, "-", gr); cel(3, "-", gr); cel(4, "-", gr); cel(5, "-", gr); }
+        if (r.Sparita && p == null) cel(2, "-", gr);
         else {
-            bool rel = p != null && p.ReleaseLetta, lic = p != null && p.LicenzaLetta;
+            bool rel = p != null && p.ReleaseLetta;
             cel(2, !rel ? Lingua.T("panoramica.non_letta_2") : string.IsNullOrEmpty(p.ReleaseTag) ? Lingua.T("comune.nessuna") : V(p.ReleaseTag), !rel ? gr : string.IsNullOrEmpty(p.ReleaseTag) ? am : ink);
-            cel(3, !rel || p.CommitDopo < 0 ? "-" : p.CommitDopo.ToString(), rel && p.CommitDopo > 0 ? am : gr);
-            cel(4, !lic ? Lingua.T("panoramica.non_letta_2") : string.IsNullOrEmpty(p.Licenza) ? Lingua.T("comune.nessuna") : V(p.Licenza), !lic ? gr : string.IsNullOrEmpty(p.Licenza) ? am : ink);
-            cel(5, p == null || p.Collaboratori == null ? Lingua.T("panoramica.non_letti_2") : p.Collaboratori.Count.ToString(), p == null || p.Collaboratori == null ? gr : ink);
         }
-        cel(6, c.Quarantena.ToString(), c.Quarantena > 0 ? am : gr);
-        cel(7, c.Lavorare.ToString(), c.Lavorare > 0 ? Aspetto.AZZURRO : gr);
-        cel(8, c.Errori.ToString(), c.Errori > 0 ? am : gr);
+        if (r.Sparita && d == null) { cel(3, "-", gr); cel(4, "-", gr); cel(5, "-", gr); }
+        else {
+            Action<int, Cella> num = (i, x) => cel(i, x.Testo, x.Colore);
+            num(3, d == null ? CellaNumero(null, false, null, 0) : CellaNumero(d, d.VisiteLette, d.VisiteErrore, d.Visite));
+            num(4, d == null ? CellaNumero(null, false, null, 0) : CellaNumero(d, d.DownloadLetti, d.DownloadErrore, d.Download));
+            num(5, d == null ? CellaNumero(null, false, null, 0) : CellaNumero(d, d.RepoLetta, d.RepoErrore, d.Stelle));
+        }
+        int leggere = c.Quarantena + c.Lavorare;
+        cel(6, Lingua.Numero(leggere), c.Quarantena > 0 ? am : leggere > 0 ? Aspetto.AZZURRO : gr);
+        cel(7, Lingua.Numero(c.Errori), c.Errori > 0 ? am : gr);
+    }
+
+    // ---------- le sparite ----------
+
+    // la freccia del gruppo: a destra chiuso, in giù aperto
+    static void Freccia(Graphics g, int x, int cy, bool aperto, Color c) {
+        var punti = aperto ? new[] { new Point(x, cy - S(3)), new Point(x + S(10), cy - S(3)), new Point(x + S(5), cy + S(3)) }
+                           : new[] { new Point(x + S(2), cy - S(5)), new Point(x + S(8), cy), new Point(x + S(2), cy + S(5)) };
+        var v = g.SmoothingMode; g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using (var b = new SolidBrush(c)) g.FillPolygon(b, punti);
+        g.SmoothingMode = v;
+    }
+
+    // un tasto disegnato, non un controllo: la pagina scorre e si ridisegna tutta. x è il bordo sinistro, o quello destro con «aDestra»
+    Rectangle TastoDisegnato(Graphics g, string testo, int x, int y, int alt, Tasto t, bool aDestra) {
+        int w = Aspetto.Larg(g, testo, Aspetto.FORTE) + S(26);
+        var r = new Rectangle(aDestra ? x - w : x, y, w, alt);
+        Aspetto.Carta(g, r, S(7), sopraTasto == t ? Aspetto.FONDINO : Color.White, Aspetto.BORDO);
+        TextRenderer.DrawText(g, testo, Aspetto.FORTE, r, Aspetto.INCHIOSTRO, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+        tasti.Add(new KeyValuePair<Rectangle, Tasto>(r, t));
+        return r;
+    }
+
+    int RigaTogli(Graphics g, bool dis, int m, int y, int w) {
+        string testo = Lingua.T("sparite.togli_dall_elenco"), frase = Lingua.T("sparite.frase_pagina");
+        int alt = S(34), lt = Aspetto.Larg(g, testo, Aspetto.FORTE) + S(26), lf = w - lt - S(14);
+        int hf = Aspetto.Alt(g, frase, Aspetto.NORMALE, lf), h = Math.Max(alt, hf);
+        if (dis) {
+            TastoDisegnato(g, testo, m, y + (h - alt) / 2, alt, Tasto.TogliQuesta, false);
+            Aspetto.TPiu(g, frase, Aspetto.NORMALE, m + lt + S(14), y + (h - hf) / 2, lf, hf + S(2), Aspetto.GRIGIO);
+        }
+        return y + h;
+    }
+
+    // ---------- «Come sta andando» ----------
+
+    // la frase in testa: le visite sono dei 14 giorni di GitHub, coi suoi totali (gli unici di ogni giorno non si sommano); il totale dei download è di sempre
+    public static string FraseNumeri(NumeriRepo n, int daLeggere) {
+        string visite = n != null && n.VisiteLette ? Lingua.N("numeri.visite", n.Visite) + " " + Lingua.N("numeri.da_persone", n.VisiteUnici) : Lingua.T("numeri.visite_non_disponibili");
+        string download = n != null && n.DownloadLetti ? Lingua.N("numeri.download", n.Download) : Lingua.T("numeri.download_non_disponibili");
+        return Lingua.T("numeri.frase", "visite", visite, "download", download, "segnalazioni", Lingua.N("numeri.segnalazioni_da_leggere", daLeggere));
+    }
+
+    // un perché si dice una volta sola, con accanto tutto quello che riguarda; se c'è un dato vecchio si dice che è vecchio
+    public static List<string> AvvisiNumeri(NumeriRepo n) {
+        var uscita = new List<string>();
+        if (n == null) return uscita;
+        var parti = new[] {
+            new { Cosa = Lingua.T("numeri.parte_visite"), Letto = n.VisiteLette, Errore = n.VisiteErrore },
+            new { Cosa = Lingua.T("numeri.parte_cloni"), Letto = n.CloniLetti, Errore = n.CloniErrore },
+            new { Cosa = Lingua.T("numeri.parte_fonti"), Letto = n.FontiLette, Errore = n.FontiErrore },
+            new { Cosa = Lingua.T("numeri.parte_pagine"), Letto = n.PagineLette, Errore = n.PagineErrore },
+            new { Cosa = Lingua.T("numeri.parte_download"), Letto = n.DownloadLetti, Errore = n.DownloadErrore },
+            new { Cosa = Lingua.T("numeri.parte_stelle"), Letto = n.RepoLetta, Errore = n.RepoErrore } };
+        foreach (var gruppo in parti.Where(p => p.Errore != null).GroupBy(p => new { p.Errore, p.Letto })) {
+            string cosa = string.Join(", ", gruppo.Select(p => p.Cosa));
+            cosa = char.ToUpper(cosa[0], CultureInfo.CurrentCulture) + cosa.Substring(1);
+            uscita.Add(Lingua.T(gruppo.Key.Letto ? "numeri.non_riletti_perche" : "numeri.non_disponibili_perche", "cosa", cosa, "perche", gruppo.Key.Errore.TrimEnd('.', ' ')));
+        }
+        return uscita;
+    }
+
+    // quello che è cambiato e merita un'occhiata. oggi: yyyy-MM-dd in UTC
+    public static List<string> Novita(NumeriRepo n, Conti c, string oggi) {
+        var l = new List<string>();
+        if (c.NuoveSegnalazioni > 0) l.Add(Lingua.N("numeri.nuove_segnalazioni", c.NuoveSegnalazioni));
+        if (c.NuoviCommenti > 0) l.Add(Lingua.N("numeri.nuovi_commenti", c.NuoviCommenti));
+        if (n == null) return l;
+        Func<string, bool> recente = g => {
+            DateTime d, o;
+            return g != null && DateTime.TryParseExact(g, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d)
+                && DateTime.TryParseExact(oggi, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out o) && (o - d).TotalDays <= 14;
+        };
+        if (n.StellePrima >= 0 && recente(n.StelleCambiate)) l.Add(Lingua.T("numeri.stelle_cambiate", "da", Lingua.Numero(n.StellePrima), "a", Lingua.Numero(n.Stelle), "data", GiornoCorto(n.StelleCambiate)));
+        if (n.CopiePrima >= 0 && recente(n.CopieCambiate)) l.Add(Lingua.T("numeri.copie_cambiate", "da", Lingua.Numero(n.CopiePrima), "a", Lingua.Numero(n.Copie), "data", GiornoCorto(n.CopieCambiate)));
+        return l;
+    }
+
+    static string GiornoCorto(string giorno) {
+        DateTime d;
+        return DateTime.TryParseExact(giorno, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d) ? d.ToString("dd/MM") : "";
+    }
+
+    // lo stesso codice misura e disegna: prima si misura per sapere quanto è alto il fondo bianco
+    int Riquadro(Graphics g, bool dis, int x, int y, int w) {
+        int fine = Contenuto(g, false, x, y, w);
+        if (!dis) return fine;
+        Aspetto.Carta(g, new Rectangle(x, y, w, fine - y), S(10), Color.White, Aspetto.BORDO);
+        return Contenuto(g, true, x, y, w);
+    }
+
+    int Contenuto(Graphics g, bool dis, int x, int y, int w) {
+        var n = repo.Numeri;
+        var c = conti(repo.Nome);
+        int pad = S(16), lt = w - pad * 2, xt = x + pad, yy = y + S(14);
+        string quando = n != null && n.LettoIl != null ? Lingua.T("numeri.letti_il", "data", n.LettoIl) : "";
+        if (dis) {
+            Aspetto.T(g, Lingua.T("numeri.titolo"), Aspetto.FORTE, xt, yy, lt - Aspetto.Larg(g, quando, Aspetto.PICCOLO) - S(10), S(20), Aspetto.AZZURRO);
+            if (quando.Length > 0) Aspetto.TDestra(g, quando, Aspetto.PICCOLO, xt + lt, yy, S(20), Aspetto.GRIGIO);
+        }
+        yy += S(24);
+        if (n == null) {
+            string ancora = Lingua.T("numeri.non_ancora_letti");
+            int ha = Aspetto.Alt(g, ancora, Aspetto.NORMALE, lt);
+            if (dis) Aspetto.TPiu(g, ancora, Aspetto.NORMALE, xt, yy, lt, ha + S(2), Aspetto.GRIGIO);
+            return yy + ha + S(14);
+        }
+        string frase = FraseNumeri(n, c.Quarantena + c.Lavorare);
+        int hf = Aspetto.Alt(g, frase, Aspetto.MEDIO, lt);
+        if (dis) Aspetto.TPiu(g, frase, Aspetto.MEDIO, xt, yy, lt, hf + S(2), Aspetto.INCHIOSTRO);
+        yy += hf + S(12);
+
+        // i sette numeri in fila; quello che non si è letto ha il trattino, non uno 0
+        var conte = new[] {
+            new { Cosa = Lingua.T("numeri.didascalia_visite"), Letto = n.VisiteLette, Errore = n.VisiteErrore, Quanti = n.Visite },
+            new { Cosa = Lingua.T("numeri.didascalia_persone"), Letto = n.VisiteLette, Errore = n.VisiteErrore, Quanti = n.VisiteUnici },
+            new { Cosa = Lingua.T("numeri.didascalia_cloni"), Letto = n.CloniLetti, Errore = n.CloniErrore, Quanti = n.Cloni },
+            new { Cosa = Lingua.T("numeri.didascalia_download"), Letto = n.DownloadLetti, Errore = n.DownloadErrore, Quanti = n.Download },
+            new { Cosa = Lingua.T("numeri.didascalia_stelle"), Letto = n.RepoLetta, Errore = n.RepoErrore, Quanti = n.Stelle },
+            new { Cosa = Lingua.T("numeri.didascalia_copie"), Letto = n.RepoLetta, Errore = n.RepoErrore, Quanti = n.Copie },
+            new { Cosa = Lingua.T("numeri.didascalia_osservatori"), Letto = n.RepoLetta, Errore = n.RepoErrore, Quanti = n.Osservatori } };
+        int lc = lt / conte.Length;
+        if (dis) for (int i = 0; i < conte.Length; i++) {
+            var k = conte[i];
+            Aspetto.T(g, k.Letto ? Lingua.Numero(k.Quanti) : "-", Aspetto.GRANDE, xt + i * lc, yy, lc - S(6), S(30), !k.Letto ? Aspetto.GRIGIO : k.Errore != null ? Aspetto.AMBRA_S : Aspetto.INCHIOSTRO);
+            Aspetto.T(g, k.Cosa, Aspetto.PICCOLO, xt + i * lc, yy + S(30), lc - S(6), S(18), Aspetto.GRIGIO);
+        }
+        yy += S(48) + S(10);
+
+        foreach (var av in AvvisiNumeri(n)) {
+            int ha = Aspetto.Alt(g, av, Aspetto.PICCOLO, lt);
+            if (dis) Aspetto.TPiu(g, av, Aspetto.PICCOLO, xt, yy, lt, ha + S(2), Aspetto.AMBRA_S);
+            yy += ha + S(6);
+        }
+        yy += S(6);
+
+        yy = Affianca(xt, yy, lt, (px, py, pw) => BloccoGiorni(g, dis, px, py, pw, n), (px, py, pw) => BloccoVersioni(g, dis, px, py, pw, n)) + S(14);
+        yy = Affianca(xt, yy, lt,
+            (px, py, pw) => BloccoVoci(g, dis, px, py, pw, Lingua.T("numeri.titolo_fonti"), n.FontiLette, n.Fonti, null),
+            (px, py, pw) => BloccoVoci(g, dis, px, py, pw, Lingua.T("numeri.titolo_pagine"), n.PagineLette, n.Pagine, repo.Nome)) + S(14);
+
+        yy = Sezione(g, dis, xt, yy, lt, Lingua.T("numeri.titolo_novita"));
+        var nuove = Novita(n, c, DateTime.UtcNow.ToString("yyyy-MM-dd"));
+        if (!repo.Seguita) nuove.Add(Lingua.T("numeri.non_segui"));
+        if (nuove.Count == 0) nuove.Add(Lingua.T("numeri.niente_di_nuovo"));
+        foreach (var r in nuove) {
+            int ha = Aspetto.Alt(g, r, Aspetto.NORMALE, lt);
+            if (dis) Aspetto.TPiu(g, r, Aspetto.NORMALE, xt, yy, lt, ha + S(2), Aspetto.INCHIOSTRO);
+            yy += ha + S(4);
+        }
+        yy += S(10);
+
+        string limiti = Lingua.T("numeri.limiti");
+        int hl = Aspetto.Alt(g, limiti, Aspetto.PICCOLO, lt);
+        if (dis) Aspetto.TPiu(g, limiti, Aspetto.PICCOLO, xt, yy, lt, hl + S(2), Aspetto.GRIGIO);
+        return yy + hl + S(14);
+    }
+
+    // due blocchi uno accanto all'altro se c'è posto, se no uno sotto l'altro
+    int Affianca(int x, int y, int w, Func<int, int, int, int> a, Func<int, int, int, int> b) {
+        int gap = S(24), col = w >= S(640) ? 2 : 1, lc = (w - gap * (col - 1)) / col;
+        int f1 = a(x, y, lc);
+        int f2 = col == 2 ? b(x + lc + gap, y, lc) : b(x, f1 + S(12), lc);
+        return Math.Max(f1, f2);
+    }
+
+    int Sezione(Graphics g, bool dis, int x, int y, int w, string titolo) {
+        if (dis) Aspetto.T(g, titolo, Aspetto.PICCOLO_F, x, y, w, S(18), Aspetto.GRIGIO);
+        return y + S(22);
+    }
+
+    int RigaVoce(Graphics g, bool dis, int x, int y, int w, string nome, string valore) {
+        if (dis) {
+            using (var n = new Pen(Color.FromArgb(235, 237, 241))) g.DrawLine(n, x, y, x + w, y);
+            int wv = Math.Min(Aspetto.Larg(g, valore, Aspetto.FORTE), w * 3 / 5);
+            Aspetto.T(g, nome, Aspetto.NORMALE, x, y, w - wv - S(10), S(24), Aspetto.INCHIOSTRO);
+            Aspetto.T(g, valore, Aspetto.FORTE, x + w - wv, y, wv + 1, S(24), Aspetto.INCHIOSTRO);
+        }
+        return y + S(24);
+    }
+
+    int Frasetta(Graphics g, bool dis, int x, int y, int w, string testo) {
+        int h = Aspetto.Alt(g, testo, Aspetto.NORMALE, w);
+        if (dis) Aspetto.TPiu(g, testo, Aspetto.NORMALE, x, y, w, h + S(2), Aspetto.GRIGIO);
+        return y + h;
+    }
+
+    // visite sopra, download sotto: un grafico per numero, ognuno con la sua scala
+    int BloccoGiorni(Graphics g, bool dis, int x, int y, int w, NumeriRepo n) {
+        var visite = giorni.Where(d => d.Visite >= 0).Select(d => new GiornoTraffico { Giorno = d.Giorno, Conta = d.Visite }).ToList();
+        if (visite.Count == 0 && n.VisiteLette && n.VisiteGiorni != null) visite = n.VisiteGiorni;
+        y = Sezione(g, dis, x, y, w, Lingua.T("numeri.titolo_visite_giorno"));
+        if (visite.Count == 0) y = Frasetta(g, dis, x, y, w, n.VisiteLette ? Lingua.T("numeri.nessun_dato") : Lingua.T("numeri.non_disponibile"));
+        else y = Barre(g, dis, x, y, w, visite, v => Lingua.N("numeri.visite", v));
+        y += S(12);
+        y = Sezione(g, dis, x, y, w, Lingua.T("numeri.titolo_download_giorno"));
+        var scaricati = Storico.DownloadPerGiorno(giorni);
+        if (scaricati.Count >= 2) return Barre(g, dis, x, y, w, scaricati, v => Lingua.N("numeri.download", v));
+        return Frasetta(g, dis, x, y, w, Lingua.T("numeri.download_da_adesso"));
+    }
+
+    // un solo numero, una sola scala che parte da 0, l'ultimo mese al massimo. Un giorno senza dato resta vuoto: nessuna barra e nessun numero
+    int Barre(Graphics g, bool dis, int x, int y, int w, List<GiornoTraffico> dati, Func<long, string> dice) {
+        int alt = S(58);
+        if (!dis) return y + alt + S(20);
+        var perGiorno = new Dictionary<string, long>();
+        foreach (var d in dati) perGiorno[d.Giorno] = d.Conta;
+        var date = dati.Select(d => DateTime.ParseExact(d.Giorno, "yyyy-MM-dd", CultureInfo.InvariantCulture)).OrderBy(d => d).ToList();
+        DateTime ultimo = date[date.Count - 1], primo = date[0];
+        if ((ultimo - primo).TotalDays > 29) primo = ultimo.AddDays(-29);
+        int quanti = (int)(ultimo - primo).TotalDays + 1;
+        long massimo = Math.Max(1, perGiorno.Where(kv => string.CompareOrdinal(kv.Key, primo.ToString("yyyy-MM-dd")) >= 0).Select(kv => kv.Value).DefaultIfEmpty(0).Max());
+        int passo = Math.Max(S(4), Math.Min(S(26), w / quanti)), spazio = S(2), larga = Math.Max(S(2), passo - spazio), baseY = y + alt;
+        for (int i = 0; i < quanti; i++) {
+            string giorno = primo.AddDays(i).ToString("yyyy-MM-dd");
+            long v;
+            if (!perGiorno.TryGetValue(giorno, out v)) continue;
+            int bx = x + i * passo;
+            barre.Add(new KeyValuePair<Rectangle, string>(new Rectangle(bx, y, passo, alt), primo.AddDays(i).ToString("dd/MM") + ": " + dice(v)));
+            if (v == 0) continue;
+            int h = Math.Max(S(3), (int)(v * (alt - S(2)) / massimo));
+            Aspetto.Pieno(g, new Rectangle(bx, baseY - h, larga, h), Math.Min(S(3), larga / 2), Aspetto.AZZURRO);
+            using (var b = new SolidBrush(Aspetto.AZZURRO)) g.FillRectangle(b, bx, baseY - Math.Min(h, S(3)), larga, Math.Min(h, S(3)));
+        }
+        int finePlot = x + quanti * passo;
+        using (var n = new Pen(Aspetto.BORDO)) g.DrawLine(n, x, baseY, finePlot, baseY);
+        Aspetto.T(g, primo.ToString("dd/MM"), Aspetto.PICCOLO, x, baseY + S(3), S(50), S(16), Aspetto.GRIGIO);
+        Aspetto.TDestra(g, ultimo.ToString("dd/MM"), Aspetto.PICCOLO, finePlot, baseY + S(3), S(16), Aspetto.GRIGIO);
+        string mx = Lingua.T("numeri.massimo", "n", Lingua.Numero(massimo));
+        int lm = Aspetto.Larg(g, mx, Aspetto.PICCOLO);
+        Aspetto.T(g, mx, Aspetto.PICCOLO, x + (finePlot - x - lm) / 2, baseY + S(3), lm + 1, S(16), Aspetto.GRIGIO);
+        return baseY + S(20);
+    }
+
+    int BloccoVersioni(Graphics g, bool dis, int x, int y, int w, NumeriRepo n) {
+        y = Sezione(g, dis, x, y, w, Lingua.T("numeri.titolo_versioni"));
+        if (!n.DownloadLetti) return Frasetta(g, dis, x, y, w, Lingua.T("numeri.non_disponibile"));
+        if (n.Versioni == null || n.Versioni.Count == 0) return Frasetta(g, dis, x, y, w, Lingua.T("numeri.nessuna_versione"));
+        foreach (var v in n.Versioni.Take(6)) {
+            string nome = V(v.Tag) + (v.Allegati.Count == 1 ? " · " + V(v.Allegati[0].Nome) : v.Allegati.Count > 1 ? " · " + Lingua.N("pubblica.n_file", v.Allegati.Count) : "");
+            y = RigaVoce(g, dis, x, y, w, nome, Lingua.Numero(v.Download));
+        }
+        if (n.Versioni.Count > 6) y = Frasetta(g, dis, x, y + S(4), w, Lingua.N("numeri.altre_versioni", n.Versioni.Count - 6));
+        return y;
+    }
+
+    // da dove arriva la gente e quali pagine guarda. togli: il pezzo «/proprietario/repo» davanti ai percorsi, che è sempre uguale
+    int BloccoVoci(Graphics g, bool dis, int x, int y, int w, string titolo, bool lette, List<VoceTraffico> voci, string togli) {
+        y = Sezione(g, dis, x, y, w, titolo);
+        if (!lette) return Frasetta(g, dis, x, y, w, Lingua.T("numeri.non_disponibile"));
+        if (voci == null || voci.Count == 0) return Frasetta(g, dis, x, y, w, Lingua.T("numeri.nessun_dato"));
+        foreach (var v in voci.Take(5)) {
+            string nome = v.Nome ?? "";
+            if (togli != null && nome.StartsWith("/" + togli, StringComparison.OrdinalIgnoreCase)) nome = nome.Substring(togli.Length + 1);
+            if (togli != null && nome.Trim('/').Length == 0) nome = Lingua.T("numeri.pagina_della_repo");
+            y = RigaVoce(g, dis, x, y, w, V(nome), Lingua.N("numeri.visite", v.Conta) + ", " + Lingua.N("numeri.persone", v.Unici));
+        }
+        return y;
     }
 }

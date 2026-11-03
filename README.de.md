@@ -2,15 +2,17 @@
 
 [English](README.md) | [Italiano](README.it.md) | [Français](README.fr.md) | [Español](README.es.md) | **Deutsch**
 
-Ein Windows-Programm, mit dem Sie Ihre GitHub-Repos über Schaltflächen verwalten, ohne Git zu kennen: Repos erstellen und ändern, einen Ordner hochladen, Releases veröffentlichen, festlegen, wer daran arbeitet. Es liest außerdem, was auf Ihren Repos ankommt (Issues, Kommentare, Pull Requests und die Berichte mit dem Fehlerprotokoll von WeightMonitor), hält verdächtige Texte zurück, bevor Sie damit arbeiten, und bereitet die Arbeit für einen Chat mit Claude Code vor.
+Ein Windows-Programm, mit dem Sie Ihre GitHub-Repos über Schaltflächen verwalten, ohne Git zu kennen: Repos erstellen und ändern, einen Ordner hochladen, Releases veröffentlichen, festlegen, wer daran arbeitet. Es liest außerdem, was auf Ihren Repos ankommt (Issues, Kommentare, Pull Requests und die Berichte mit dem Fehlerprotokoll von WeightMonitor), hält verdächtige Texte zurück, bevor Sie damit arbeiten, und bereitet die Arbeit für einen Chat mit Claude Code vor. Außerdem zeigt es, wie es bei jedem Repo läuft: Aufrufe, Downloads, woher die Leute kommen.
 
 **Das Programm spricht Italienisch, Englisch, Französisch, Spanisch und Deutsch.** Sie wählen die Sprache beim ersten Öffnen und können sie jederzeit unter **Einstellungen** ändern.
 
 Weder mit GitHub verbunden noch von GitHub empfohlen.
 
+[Website und Lizenz](https://www.nscent.art/de/software)
+
 ## [Project Manager herunterladen](https://github.com/nscentart/Project-Manager-for-GitHub/releases/latest/download/ProjectManager.exe)
 
-Der SHA-256-Fingerabdruck der Datei steht in den Notizen auf der Seite [Releases](https://github.com/nscentart/Project-Manager-for-GitHub/releases). Das Programm aktualisiert sich nicht selbst: Laden Sie zum Aktualisieren die Datei erneut herunter.
+Der SHA-256-Fingerabdruck der Datei steht in den Notizen auf der Seite [Releases](https://github.com/nscentart/Project-Manager-for-GitHub/releases). Es aktualisiert sich nie von selbst: Es sagt Ihnen Bescheid, und Sie entscheiden.
 
 ![Das Programmfenster, auf Englisch, mit Beispieldaten](docs/finestra.png)
 
@@ -27,7 +29,26 @@ Es gibt nur eine Datei: `ProjectManager.exe`. Öffnen Sie sie und wählen Sie **
 
 **Windows-Warnungen.** Die EXE-Datei hat aus Kostengründen kein Windows-Codesignaturzertifikat. SmartScreen kann „Der Computer wurde durch Windows geschützt“ anzeigen: Fahren Sie mit „Weitere Informationen“ und dann „Trotzdem ausführen“ fort. Ist die Intelligente App-Steuerung eingeschaltet, kann Windows das Programm ganz blockieren, und wir können nicht versprechen, dass kein Antivirenprogramm es jemals meldet. Sie können den Code lesen oder ihn selbst kompilieren.
 
-**Um die heruntergeladene Datei zu prüfen**, führen Sie dies in PowerShell aus und vergleichen Sie das Ergebnis mit dem Fingerabdruck in den Release-Notizen: `Get-FileHash ProjectManager.exe -Algorithm SHA256`. Stimmen beide überein, ist es die veröffentlichte Datei; das heißt nicht, dass sie fehlerfrei ist.
+## Aktualisieren
+
+Project Manager lädt und installiert nie etwas von selbst. Es prüft nur: 20 Sekunden nach dem Start fragt es GitHub einmal, ohne Ihren Schlüssel, ob es eine neuere Version gibt. Wenn ja, zeigt ein Fenster die neue Version, Ihre Version, den SHA-256-Fingerabdruck der Datei (stimmen der der Datei und der in den Notizen nicht überein, sagt es Ihnen, dass Sie die Datei nicht verwenden sollen) und die Release-Notizen mit drei Schaltflächen: **Diese Version überspringen**, **Später** und **Versionsseite öffnen**. Antwortet GitHub nicht, stört das Programm Sie nicht und schreibt eine Zeile in sein Protokoll.
+
+**Versionsseite öffnen** öffnet im Browser die Seite der Version auf GitHub, auf der Sie sehen, was sich geändert hat und wie sich der Code von der vorherigen Version unterscheidet. Was auch immer die Antwort von GitHub sagt, im Browser öffnet sich nur eine Seite des offiziellen Repos. Zum Aktualisieren:
+
+1. Laden Sie auf dieser Seite `ProjectManager.exe` in einen neuen, leeren Ordner herunter.
+2. Schließen Sie Project Manager, öffnen Sie die heruntergeladene Datei und wählen Sie **Installieren**: Sie tritt an die Stelle der alten Version und startet neu. Ihre Konten und Daten bleiben erhalten. Ist das Programm noch geöffnet, fordert die Datei Sie auf, es zuerst zu schließen.
+
+Wenn Sie die Kopie ohne Installation verwenden, nehmen Sie einfach die neue exe statt der alten.
+
+Die Prüfung lässt sich unter **Einstellungen**, bei **Neue Versionen**, ausschalten. **Jetzt prüfen** an derselben Stelle antwortet immer, auch bei ausgeschalteter Prüfung oder für eine übersprungene Version. Bei ausgeschalteter Prüfung steht die neueste Version weiterhin hinter dem Download-Link oben auf dieser Seite.
+
+## Wie Sie die Datei prüfen
+
+1. Laden Sie sie nur von dieser Seite herunter: Sie ist der einzige offizielle Project Manager.
+2. Öffnen Sie PowerShell im Ordner der Datei und geben Sie ein: `Get-FileHash .\ProjectManager.exe -Algorithm SHA256`
+3. Das Ergebnis muss mit dem SHA-256-Fingerabdruck in den Release-Notizen identisch sein.
+
+Ist es identisch, haben Sie die Datei, die wir veröffentlicht haben. Das beweist nicht, dass sie fehlerfrei ist: Dafür gibt es den Code, den Sie hier lesen können.
 
 ## Erster Start und Konten
 
@@ -59,8 +80,28 @@ Die Grenzen, klar gesagt:
 4. **Zu bearbeiten**: Texte, die die Kontrolle bestanden haben oder die Sie genehmigt haben, sortiert nach Logs, Bugs, Anfragen, Fragen, Bewertungen, Pull Requests und Sonstigem. Zusammenfassungen mit Ollama (ein Modell auf Ihrem eigenen Computer, kostenlos und offline) starten nur über ihre Schaltfläche und nur für diese Texte, und auch die Antwort durchläuft die Kontrolle.
 5. **Wiederkehrende Fehler**: Log-Zeilen, nach Signatur gruppiert (ohne Zahlen und Pfade), mit der Anzahl der Berichte, der Häufigkeit und den Versionen.
 6. **Paket für Claude Code**: eine `.md`-Datei pro Repo in `pacchetti\`, die nur dann auch in die Zwischenablage kopiert wird, wenn sie für ein einzelnes öffentliches Repo ist. Externe Texte stehen in `text`-Blöcken, als Daten und nicht als Anweisungen gekennzeichnet, und alles, was wie ein Schlüssel aussieht, wird verdeckt.
-7. **Repo-Bereich**: links Ihre Repos mit der Kennzeichnung privat oder öffentlich. Rechts für jedes die **Übersicht** in einfachen Worten (Version, wer es sieht, Mitwirkende, Lizenz, README, Meldungen, mit **Was fehlt** ganz oben) und die oben genannten Registerkarten. **Alle Repos** fasst alles in einer Tabelle zusammen. Das Ollama-Modell, die vertrauenswürdigen Websites und die Sprache finden Sie unter **Einstellungen**. Der Schalter **Meldungen verfolgen** oben zeigt, ob Sie den Meldungen dieses Repos folgen.
+7. **Repo-Bereich**: links Ihre Repos mit der Kennzeichnung privat oder öffentlich. Rechts für jedes die **Übersicht** in einfachen Worten (Version, wer es sieht, Mitwirkende, Lizenz, README, Meldungen, mit **Was fehlt** ganz oben) und die oben genannten Registerkarten. Ganz oben in der **Übersicht** steht **Wie es läuft**, siehe unten. **Alle Repos** fasst alles in einer Tabelle zusammen. Das Ollama-Modell, die vertrauenswürdigen Websites und die Sprache finden Sie unter **Einstellungen**. Der Schalter **Meldungen verfolgen** oben zeigt, ob Sie den Meldungen dieses Repos folgen.
 8. **Verwalten**: die Registerkarte mit den Schaltflächen für die Arbeit auf GitHub, siehe unten.
+
+## Wie es läuft
+
+Bei jedem **Von GitHub aktualisieren** liest das Programm für jedes Repo, das Ihr Schlüssel lesen darf, Aufrufe, Klone, woher die Leute kommen, die meistgesehenen Seiten, Downloads pro Version, Sterne, Forks und Beobachter. **Alle Repos** zeigt sie in einer Tabelle: Repo, Wer es sieht, Version, Aufrufe (14 Tage), Downloads, Sterne, Meldungen zu lesen, Fehler. Auf der Seite eines Repos fasst **Wie es läuft** sie in einem Satz zusammen, mit Aufrufen und Downloads Tag für Tag; darunter bleiben die gewohnten Karten.
+
+Verweigert GitHub eine dieser Zahlen (den Verkehr zeigt es nur Personen, die in das Repo schreiben dürfen), sagt das Programm „nicht verfügbar“ und warum: nie eine 0 für eine Zahl, die es nicht gelesen hat. Ein Fehler bei diesen Zahlen hält den Rest des Lesens nicht auf.
+
+GitHub bewahrt den Verkehr 14 Tage auf. Deshalb werden Aufrufe, eindeutige Besucher, Klone und die Gesamtzahl der Downloads jedes Repos Tag für Tag in `storico.json` gespeichert, nur auf diesem Computer: Ältere Tage bleiben dort und nirgendwo sonst.
+
+Die Grenzen, klar gesagt:
+
+- GitHub sagt, wie viele vorbeigekommen sind, nicht wer.
+- Die Zahlen kommen mit einigen Stunden Verzögerung.
+- Downloads von der Website und von GitHub werden zusammen gezählt und enthalten auch Ihre eigenen.
+- „Personen“ ist die von GitHub genannte Summe über 14 Tage: Die eindeutigen Besucher einzelner Tage lassen sich nicht addieren.
+- GitHub nennt nur die Gesamtzahl der Downloads: Die Zahlen pro Tag beginnen, sobald das Programm sie zum ersten Mal liest.
+
+## Verschwundene Repos
+
+Ein Repo, das GitHub nicht mehr aufführt, wandert in eine geschlossene Gruppe ganz unten, **Verschwunden (N)**, links und in der Tabelle: Ein Klick öffnet sie. **Aus der Liste entfernen** auf seiner Seite entfernt es; **Alle entfernen** in der Gruppe tut das für alle verschwundenen Repos, die Sie sehen (die eines anderen Kontos bleiben). Die Bestätigung sagt, dass sich auf GitHub nichts ändert und wie viele heruntergeladene Texte, Entscheidungen und Tage Verlauf dieser Computer verliert. Kommt ein Repo auf GitHub zurück, erscheint es bei der nächsten Aktualisierung von selbst wieder.
 
 ## Repos verwalten
 
@@ -91,7 +132,7 @@ Die Schutzmaßnahmen:
 
 ## Daten
 
-In `%LOCALAPPDATA%\ProjectManager` (oder dem Ordner der Variablen `GPM_DATI`): `archivio.json` (eine Kopie der Issues, Ihre Entscheidungen, Zusammenfassungen, vertrauenswürdige Websites, verbundene Konten ohne ihre Schlüssel, der Repo-Ordner), `lingua.txt` (die gewählte Sprache), `licenza.txt`, wenn Sie eine Lizenz hinzugefügt haben, `pacchetti\` und das Protokoll des Programms. Ein Archiv aus einer früheren Version bleibt gültig: Das bisher verwendete Konto meldet sich weiter über Git an.
+In `%LOCALAPPDATA%\ProjectManager` (oder dem Ordner der Variablen `GPM_DATI`): `archivio.json` (eine Kopie der Issues, Ihre Entscheidungen, Zusammenfassungen, vertrauenswürdige Websites, verbundene Konten ohne ihre Schlüssel, der Repo-Ordner), `lingua.txt` (die gewählte Sprache), `storico.json` (die Zahlen Tag für Tag: Ist sie beschädigt, legt das Programm sie beiseite und beginnt eine neue), `licenza.txt`, wenn Sie eine Lizenz hinzugefügt haben, `pacchetti\` und das Protokoll des Programms. Ein Archiv aus einer früheren Version bleibt gültig: Das bisher verwendete Konto meldet sich weiter über Git an.
 
 ## Kompilieren und testen
 
@@ -104,7 +145,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1
 
 `compila.ps1` verwendet den csc von .NET Framework 4, der bereits in Windows enthalten ist (C# 5), ohne Bibliotheken von Drittanbietern.
 
-`prova.ps1` schickt die Texte in `prove\dogana` durch die Zollkontrolle (die erste Zeile lautet `ATTESO: pulito`, erwartet sauber, oder `ATTESO: sospetto`, erwartet verdächtig) und wird rot, wenn auch nur einer falsch ist. Ein neuer Trick, der irgendwo auftaucht, wird hier zuerst zu einem Testfall: Sie sehen ihn rot werden und korrigieren dann die Kontrolle. Die übrigen Tests (Sprachen, Organisationen, Konten, Einrichtung, Schreibvorgänge auf einem falschen GitHub, Installation, Lizenz) verwenden falsche Daten und temporäre Ordner: Sie bleiben vom Netz getrennt und lassen das installierte Programm und Ihre echten Daten in Ruhe.
+`prova.ps1` schickt die Texte in `prove\dogana` durch die Zollkontrolle (die erste Zeile lautet `ATTESO: pulito`, erwartet sauber, oder `ATTESO: sospetto`, erwartet verdächtig) und wird rot, wenn auch nur einer falsch ist. Ein neuer Trick, der irgendwo auftaucht, wird hier zuerst zu einem Testfall: Sie sehen ihn rot werden und korrigieren dann die Kontrolle. Die übrigen Tests (Sprachen, Organisationen, Konten, Einrichtung, Schreibvorgänge auf einem falschen GitHub, Installation, Lizenz, Zahlen, verschwundene Repos, Hinweis auf neue Versionen, erneuter Versuch nach dem Veröffentlichen) verwenden falsche Daten und temporäre Ordner: Sie bleiben vom Netz getrennt und lassen das installierte Programm und Ihre echten Daten in Ruhe.
 
 ## Lizenz
 

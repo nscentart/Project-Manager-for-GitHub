@@ -13,7 +13,7 @@ using System.Windows.Forms;
 [assembly: AssemblyInformationalVersion(Programma.VERSIONE)]
 
 public static class Programma {
-    public const string VERSIONE = "1.0";
+    public const string VERSIONE = "1.1";
     public const string COPIA_UNICA = "ProjectManager-una-copia";
 
     // un file dentro l'exe: i testi delle lingue
@@ -41,6 +41,11 @@ public static class Programma {
         if (args.Length == 2 && args[0] == "--prova-installazione") return Installatore.Prova(args[1]);
         if (args.Length == 2 && args[0] == "--prova-guidata") return Guidata.Prova(args[1]);
         if (args.Length == 2 && args[0] == "--prova-licenza") return ProvaLicenza.Prova(args[1]);
+        if (args.Length == 2 && args[0] == "--prova-numeri") return ProvaNumeri.Prova(args[1]);
+        if (args.Length == 2 && args[0] == "--prova-sparite") return ProvaSparite.Prova(args[1]);
+        if (args.Length == 2 && args[0] == "--togli-sparite-copia") return ProvaSparite.SuCopia(args[1]);
+        if (args.Length == 2 && args[0] == "--prova-avviso") return ProvaAvviso.Prova(args[1]);
+        if (args.Length == 2 && args[0] == "--prova-riprova") return ProvaRiprova.Prova(args[1]);
         if (args.Length == 2 && args[0] == "--prova-lingue-vive") return ProvaLingue.Vive(args[1]);
         if (args.Length == 2 && args[0] == "--prova-lingua-comando") return ProvaLingue.DaComando(args[1], lingua);
         if (args.Length == 2 && args[0] == "--foto") return Foto.Tutte(args[1], null);

@@ -17,6 +17,11 @@ public class Finestra : Dialogo {
     List<string> modelli = new List<string>();
     Dictionary<string, int> consegne = new Dictionary<string, int>();
     bool occupato;
+    bool spariteAperte;   // il gruppo «Sparite (N)»: chiuso a ogni avvio, non si salva
+    int ultimaSel;        // l'ultima riga vera scelta a sinistra: il gruppo non resta mai scelto
+    ArchivioStorico storico = new ArchivioStorico();
+    static bool avvisoPartito;   // la finestra si riapre quando cambia la lingua: la domanda a GitHub all'avvio si fa una volta sola
+    static Finestra aperta;      // quella che c'è adesso, per chi risponde dopo
     public static bool SoloFoto;   // per le foto: niente rete, niente procedura
     public static bool RiapriPerLingua;   // la lingua è cambiata: chi ha aperto la finestra ne apre una nuova
     public static Action<Form> FotoImpostazioni;   // per le foto: la finestra delle Impostazioni si fotografa invece di aspettare una risposta
@@ -35,7 +40,23 @@ public class Finestra : Dialogo {
         var lista = i == 2 ? lQuar : i == 3 ? lLav : i == 4 ? lErr : i == 5 ? lArch : null;
         if (lista != null && lista.Items.Count > 0) lista.Items[0].Selected = true;
     }
-    public void FotoRepo(string nome) { for (int i = 0; i < repo.Items.Count; i++) { var r = ((RigaRepo)repo.Items[i]).R; if (r != null && r.Nome == nome) repo.SelectedIndex = i; } }
+    public void FotoRepo(string nome) {
+        var x = RepoOra().FirstOrDefault(r => r.Nome == nome);
+        if (x != null && x.Sparita && !spariteAperte) { spariteAperte = true; Mostra(); }
+        for (int i = 0; i < repo.Items.Count; i++) { var r = ((RigaRepo)repo.Items[i]).R; if (r != null && r.Nome == nome) repo.SelectedIndex = i; }
+    }
+    public void FotoSparite(bool aperte) { spariteAperte = aperte; Mostra(); }
+    // per le prove: i pezzi veri della finestra, senza mouse e senza schermo
+    public ListaRepo Colonna { get { return repo; } }
+    public PaginaPanoramica Panoramica { get { return panoramica; } }
+    public Label Stato { get { return stato; } }
+    public bool SparitePerProva { get { return spariteAperte; } }
+    public RepoInfo SceltaPerProva { get { return Scelta(); } }
+    public void OccupatoPerProva(bool si) { occupato = si; }
+    public void AggiornaPerProva() { Aggiorna(); }
+    public bool OccupatoOra { get { return occupato; } }
+    public static Func<Form, DialogResult> RispostaTogli;    // per le prove e le foto: la conferma risponde subito
+    public static Func<Form, DialogResult> RispostaAvviso;
     HashSet<string> nascoste = new HashSet<string>();   // le repo che l'account o il filtro non mostrano
     ComboBox cConto, cFiltro;
     List<string[]> filtri = new List<string[]>();
@@ -81,7 +102,8 @@ public class Finestra : Dialogo {
         marchio.Controls.Add(lic);
         MostraLicenza();
         repo = new ListaRepo { Dock = DockStyle.Fill };
-        repo.SelectedIndexChanged += delegate { if (!caricando) Riempi(); };
+        repo.SelectedIndexChanged += delegate { if (!caricando) { if (SuGruppo()) return; ultimaSel = repo.SelectedIndex; Riempi(); } };
+        repo.GruppoCliccato += ApriChiudiSparite;
         var scelte = new Panel { Dock = DockStyle.Top, Height = S(112), BackColor = Aspetto.FONDO };
         Func<string, int, Label> sopra = (x, y) => new Label { Text = x, Font = Aspetto.PICCOLO, ForeColor = Aspetto.MUTO, BackColor = Aspetto.FONDO, Bounds = new Rectangle(S(20), y, S(232), S(18)), UseMnemonic = false };
         cConto = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Aspetto.CAPSULA, ForeColor = Aspetto.TESTO, Bounds = new Rectangle(S(20), S(18), S(232), S(28)) };
@@ -113,10 +135,13 @@ public class Finestra : Dialogo {
         var pagine = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
         panoramica = new PaginaPanoramica { Dock = DockStyle.Fill };
         panoramica.RepoScelta += r => { for (int i = 0; i < repo.Items.Count; i++) if (((RigaRepo)repo.Items[i]).R == r) repo.SelectedIndex = i; };
+        panoramica.GruppoCliccato += ApriChiudiSparite;
+        panoramica.TogliTutte += delegate { Togli(RepoVisibili().Where(x => x.Sparita).Select(x => x.Nome).ToList()); };
+        panoramica.TogliQuesta += delegate { var s = Scelta(); if (s != null) Togli(new List<string> { s.Nome }); };
         schede.Voci.Add(new BarraSchede.Voce { Nome = Lingua.T("finestra.panoramica"), Pagina = panoramica });
         gestione = new PaginaGestione(PortaScrittura.Vera(new PortaVera(), StradaVera)) { Occupata = () => occupato };
         gestione.Cambiata += delegate { Aggiorna(); };
-        gestione.Rinominata += (vecchio, nuovo) => { lock (this) Scrittura.RinominaInArchivio(a, vecchio, nuovo); Salva(); Ricalcola(); Mostra(); Aggiorna(); };
+        gestione.Rinominata += (vecchio, nuovo) => { lock (this) Scrittura.RinominaInArchivio(a, vecchio, nuovo); lock (storico) Storico.Rinomina(storico, vecchio, nuovo); Salva(); SalvaStorico(); Ricalcola(); Mostra(); Aggiorna(); };
         gestione.Cancellata += nome => { lock (this) Scrittura.SegnaCancellata(a, nome); Salva(); Ricalcola(); Mostra(); Aggiorna(); };
         schede.Voci.Add(new BarraSchede.Voce { Nome = Lingua.T("finestra.gestisci"), Pagina = gestione });
         tQuar = Scheda(Lingua.T("finestra.quarantena"), out lQuar, out dQuar,
@@ -147,9 +172,14 @@ public class Finestra : Dialogo {
         Controls.Add(destra); Controls.Add(colonna);
         Load += delegate {
             Aspetto.BarraScura(this); schede.Scegli(0); Carica();
+            aperta = this;
             if (SoloFoto) return;
             CercaModelli();
             if (a.Conti.Count > 0) Aggiorna();
+            if (!avvisoPartito) {
+                avvisoPartito = true;
+                Aggiornamenti.AllAvvio(() => aperta.a.AvvisoSpento, () => aperta.a.VersioneSaltata, n => aperta.InUi(() => aperta.Avvisa(n)));
+            }
         };
         // nessun account collegato: la procedura si apre sopra la finestra già visibile
         Shown += delegate { if (!SoloFoto && a.Conti.Count == 0) Collega(true); };
@@ -225,6 +255,7 @@ public class Finestra : Dialogo {
 
     void Carica() {
         a = Dati.Carica();
+        storico = Storico.Carica();
         Ricalcola();
         Mostra();
     }
@@ -238,21 +269,96 @@ public class Finestra : Dialogo {
         try { lock (this) Dati.Salva(a); } catch (Exception ex) { Dati.Log("salvataggio: " + ex.Message); MessageBox.Show(this, Lingua.T("finestra.non_riesco_salvare_l_archivio", "errore", ex.Message), Text); }
     }
 
-    RepoInfo Scelta() { var r = repo.SelectedItem as RigaRepo; return r == null ? null : r.R; }
+    void SalvaStorico() {
+        try { lock (storico) Storico.Salva(storico); } catch (Exception ex) { Dati.Log("storico: " + ex.Message); }
+    }
+
+    RepoInfo Scelta() {
+        var r = repo.SelectedItem as RigaRepo;
+        if (r != null && r.Gruppo) r = ultimaSel >= 0 && ultimaSel < repo.Items.Count ? repo.Items[ultimaSel] as RigaRepo : null;
+        return r == null ? null : r.R;
+    }
+
+    // con le frecce si può arrivare sulla riga del gruppo: scendendo si entra nel gruppo, salendo si torna sopra
+    bool SuGruppo() {
+        var r = repo.SelectedItem as RigaRepo;
+        if (r == null || !r.Gruppo) return false;
+        int qui = repo.SelectedIndex;
+        if (qui < ultimaSel) { repo.SelectedIndex = qui - 1; return true; }
+        if (!spariteAperte) { spariteAperte = true; Mostra(); }
+        repo.SelectedIndex = qui + 1;
+        return true;
+    }
+
+    void ApriChiudiSparite() {
+        var s = Scelta();
+        if (spariteAperte && s != null && s.Sparita) { caricando = true; repo.SelectedIndex = 0; ultimaSel = 0; caricando = false; }   // la scelta non resta su una riga nascosta
+        spariteAperte = !spariteAperte;
+        Mostra();
+    }
+
+    // solo su questo computer: su GitHub non si chiede e non si cambia niente
+    void Togli(List<string> nomi) {
+        if (occupato) { stato.Text = Lingua.T("comune.aspetta_che_finisca_lavoro_corso"); return; }
+        Accessi.Togliere quanto;
+        lock (this) lock (storico) quanto = Accessi.ContaTogli(a, storico, nomi);
+        if (quanto.Repo.Count == 0) return;
+        using (var f = new FinestraTogli(quanto)) {
+            var r = RispostaTogli != null ? RispostaTogli(f) : f.ShowDialog(this);
+            if (r != DialogResult.OK) return;
+        }
+        var s = Scelta();
+        if (s != null && quanto.Repo.Contains(s.Nome)) { caricando = true; repo.SelectedIndex = 0; ultimaSel = 0; caricando = false; }
+        lock (this) lock (storico) Accessi.TogliSparite(a, storico, quanto.Repo);
+        Salva();
+        SalvaStorico();
+        Ricalcola();
+        Mostra();
+        stato.Text = Lingua.N("sparite.tolte", quanto.Repo.Count);
+    }
+
+    // ---------- l'avviso di versione nuova ----------
+
+    // se è aperta un'altra finestra si aspetta: l'avviso non si mette in mezzo a una conferma
+    void Avvisa(VersioneNuova n) {
+        if (CanFocus || RispostaAvviso != null) { MostraAvviso(n, this); return; }
+        AspettaAvviso(n);
+    }
+
+    public static int AttesaAvvisoMs = 5000;
+
+    // mentre si aspetta la finestra può cambiare (la lingua ne apre una nuova): vale quella aperta adesso
+    public void AspettaAvviso(VersioneNuova n) {
+        var t = new System.Windows.Forms.Timer { Interval = AttesaAvvisoMs };
+        t.Tick += delegate { var f = aperta; if (f == null || f.IsDisposed || !f.CanFocus) return; t.Stop(); t.Dispose(); f.MostraAvviso(n, f); };
+        t.Start();
+    }
+
+    public void MostraAvviso(VersioneNuova n, IWin32Window sopra) {
+        using (var f = new FinestraAvviso(n)) {
+            var r = RispostaAvviso != null ? RispostaAvviso(f) : f.ShowDialog(sopra);
+            if (r == DialogResult.Ignore) { a.VersioneSaltata = n.Etichetta; Salva(); }
+            if (r == DialogResult.OK) Aggiornamenti.Apri(n.Pagina);
+        }
+    }
 
     List<RepoInfo> RepoOra() { lock (this) return a.Repo.ToList(); }
     List<RepoInfo> RepoVisibili() { lock (this) return Accessi.Visibili(a); }
 
     PaginaPanoramica.Conti Conta(string nome) {
         int c;
+        string soglia = DateTime.UtcNow.AddDays(-14).ToString("yyyy-MM-dd");   // le date ISO si confrontano come testo
         return new PaginaPanoramica.Conti {
             Quarantena = voci.Count(v => v.E.Repo == nome && v.Stato == "quarantena"), Lavorare = voci.Count(v => v.E.Repo == nome && v.Stato == "lavorare"),
-            Errori = errori.Count(g => g.Repo == nome), Consegne = consegne.TryGetValue(nome, out c) ? c : -1 };
+            Errori = errori.Count(g => g.Repo == nome), Consegne = consegne.TryGetValue(nome, out c) ? c : -1,
+            NuoveSegnalazioni = voci.Count(v => v.E.Repo == nome && v.E.Tipo != "commento" && string.CompareOrdinal(v.E.Creato, soglia) >= 0),
+            NuoviCommenti = voci.Count(v => v.E.Repo == nome && v.E.Tipo == "commento" && string.CompareOrdinal(v.E.Creato, soglia) >= 0) };
     }
 
     // la colonna di sinistra: prima «Tutte le repo», poi le repo vive, in fondo le sparite
     void Mostra() {
         var scelta = Scelta();
+        int cima = repo.TopIndex;   // riempire da capo riporta la colonna in cima: resta dove l'hai lasciata
         caricando = true;
         RiempiScelte();
         repo.BeginUpdate();
@@ -263,16 +369,26 @@ public class Finestra : Dialogo {
         consegne.Clear();
         foreach (var r in mie) consegne[r.Nome] = Dati.ConsegneInAttesa(r.Nome);
         int spar = mie.Count(r => r.Sparita);
+        if (spar == 0) spariteAperte = false;
+        if (scelta != null && scelta.Sparita && mie.Any(r => r.Nome == scelta.Nome)) spariteAperte = true;   // la repo scelta non si nasconde
         repo.Items.Add(new RigaRepo { Nome = Lingua.T("comune.tutte_repo"), Sotto = Lingua.N("finestra.su_github", mie.Count - spar) + (spar > 0 ? ", " + Lingua.N("comune.sparite", spar) : ""),
                                       Quarantena = voci.Count(v => v.Stato == "quarantena" && !nascoste.Contains(v.E.Repo)), Lavorare = voci.Count(v => v.Stato == "lavorare" && !nascoste.Contains(v.E.Repo)) });
         int sel = 0;
+        bool gruppo = false;
         foreach (var r in mie) {
+            if (r.Sparita && !gruppo) {
+                gruppo = true;
+                repo.Items.Add(new RigaRepo { Gruppo = true, Aperto = spariteAperte, Nome = Lingua.T("sparite.gruppo", "n", Lingua.Numero(spar)) });
+            }
+            if (r.Sparita && !spariteAperte) continue;
             var c = Conta(r.Nome);
             int i = repo.Items.Add(new RigaRepo { R = r, Nome = PaginaPanoramica.CortoDi(r, a.Login ?? ""), Quarantena = c.Quarantena, Lavorare = c.Lavorare });
             if (scelta != null && r.Nome == scelta.Nome) sel = i;
         }
         repo.SelectedIndex = sel;
+        ultimaSel = sel;
         repo.EndUpdate();
+        repo.TopIndex = Math.Min(cima, repo.Items.Count - 1);
         caricando = false;
         Riempi();
     }
@@ -332,7 +448,7 @@ public class Finestra : Dialogo {
         testata.Invalidate();
         letto.Text = a.UltimoAggiornamento == null ? Lingua.T("finestra.mai_aggiornato") : Lingua.T("finestra.aggiornato_2", "ultimoaggiornamento", a.UltimoAggiornamento);
         gestione.Imposta(r, a.Login);
-        panoramica.Imposta(r, RepoVisibili().OrderBy(x => x.Sparita).ThenBy(x => x.Nome, StringComparer.OrdinalIgnoreCase).ToList(), a.Login, Conta, vecchio);
+        panoramica.Imposta(r, RepoVisibili().OrderBy(x => x.Sparita).ThenBy(x => x.Nome, StringComparer.OrdinalIgnoreCase).ToList(), a.Login, Conta, vecchio, spariteAperte, n => { lock (storico) return Storico.Copia(storico, n); });
     }
 
     // l'interruttore «Seguo le segnalazioni» (prima era la spunta accanto alla repo)
@@ -537,8 +653,12 @@ public class Finestra : Dialogo {
                     if (nuova.ReleaseErrore != null || nuova.TagErrore != null || nuova.CommitDopoErrore != null || nuova.CommitErrore != null
                         || nuova.CollaboratoriErrore != null || nuova.LicenzaErrore != null || nuova.ReadmeErrore != null || nuova.ReadmeDataErrore != null) nonLette++;
                     r.Pannello = nuova;
+                    // i numeri di «Come sta andando» non contano per «letta a metà»: se GitHub non li dà, lo dice il loro riquadro
+                    r.Numeri = GitHub.LeggiNumeri(r, r.Numeri);
+                    lock (storico) Storico.Unisci(storico, r.Nome, r.Numeri, DateTime.UtcNow.ToString("yyyy-MM-dd"));
                     InUi(Pagina);
                 }
+                SalvaStorico();
                 // ogni repo si aggiorna per conto suo: se una fallisce, le altre vanno avanti
                 foreach (var r in RepoOra().Where(x => x.Seguita && !x.Sparita && Accessi.Vede(x, chi))) {
                     var r2 = r;
@@ -670,7 +790,7 @@ public class Finestra : Dialogo {
     void Impostazioni() {
         if (occupato) { stato.Text = Lingua.T("comune.aspetta_che_finisca_lavoro_corso"); return; }
         CercaModelli();
-        using (var f = new Form { Text = Lingua.T("finestra.impostazioni"), ClientSize = new Size(S(520), S(470 + 74)), StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
+        using (var f = new Form { Text = Lingua.T("finestra.impostazioni"), ClientSize = new Size(S(520), S(470 + 74 + 118)), StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
                                   MinimizeBox = false, MaximizeBox = false, BackColor = Aspetto.FONDO, ForeColor = Aspetto.TESTO, Font = Font, AutoScaleMode = AutoScaleMode.None }) {
             Func<string, Font, Color, Rectangle, Label> scritta = (x, fo, co, re) => new Label { Text = x, Font = fo, ForeColor = co, Bounds = re, UseMnemonic = false, BackColor = Aspetto.FONDO };
             int m = S(24), lu = S(520) - m * 2, y0 = S(74);
@@ -697,14 +817,34 @@ public class Finestra : Dialogo {
                 using (var d = new FolderBrowserDialog { Description = Lingua.T("finestra.cartella_che_contiene_tue_repo"), ShowNewFolderButton = false, SelectedPath = cart.Text })
                     if (d.ShowDialog(f) == DialogResult.OK) cart.Text = d.SelectedPath;
             };
-            var ok = Tasto(Lingua.T("comune.salva"), true); ok.SetBounds(m + lu - S(130), y0 + S(414), S(130), S(36)); ok.DialogResult = DialogResult.OK;
-            var no = TastoScuro(Lingua.T("comune.annulla")); no.SetBounds(m + lu - S(130) - S(10) - S(110), y0 + S(414), S(110), S(36)); no.DialogResult = DialogResult.Cancel;
-            f.Controls.AddRange(new Control[] { l0, lingue, l1, s1, scelta, l2, s2, t, l3, s3, cart, sf, ok, no });
+            var l4 = scritta(Lingua.T("agg.sezione"), Aspetto.MEDIO, Aspetto.TESTO, new Rectangle(m, y0 + S(410), lu, S(24)));
+            var avviso = new CheckBox { Text = Lingua.T("agg.controlla_all_avvio"), Checked = !a.AvvisoSpento, ForeColor = Aspetto.TESTO, BackColor = Aspetto.FONDO, UseMnemonic = false, AutoSize = false, Bounds = new Rectangle(m, y0 + S(438), lu - S(170), S(28)) };
+            var ora = TastoScuro(Lingua.T("agg.controlla_ora")); ora.SetBounds(m + lu - S(160), y0 + S(436), S(160), S(32));
+            var esito = scritta("", Aspetto.NORMALE, Aspetto.MUTO, new Rectangle(m, y0 + S(472), lu, S(40)));
+            ora.Click += delegate {
+                ora.Enabled = false;
+                esito.Text = Lingua.T("agg.sto_controllando");
+                new Thread(() => {
+                    VersioneNuova n = null; string testo;
+                    try { n = Aggiornamenti.Cerca(); testo = n == null ? Lingua.T("agg.ultima", "v", Programma.VERSIONE) : ""; }
+                    catch (Exception ex) { Dati.Log("aggiornamenti: " + ex.Message); testo = Lingua.T("agg.non_cerca", "err", ex.Message.TrimEnd('.', ' ')); }
+                    try {
+                        f.BeginInvoke((Action)(() => {
+                            esito.Text = testo; ora.Enabled = true;
+                            if (n != null) MostraAvviso(n, f);
+                        }));
+                    } catch (InvalidOperationException) { }   // la finestra si è chiusa nel frattempo
+                }) { IsBackground = true }.Start();
+            };
+            var ok = Tasto(Lingua.T("comune.salva"), true); ok.SetBounds(m + lu - S(130), y0 + S(528), S(130), S(36)); ok.DialogResult = DialogResult.OK;
+            var no = TastoScuro(Lingua.T("comune.annulla")); no.SetBounds(m + lu - S(130) - S(10) - S(110), y0 + S(528), S(110), S(36)); no.DialogResult = DialogResult.Cancel;
+            f.Controls.AddRange(new Control[] { l0, lingue, l1, s1, scelta, l2, s2, t, l3, s3, cart, sf, l4, avviso, ora, esito, ok, no });
             f.CancelButton = no;
             f.Load += delegate { Aspetto.BarraScura(f); ok.Focus(); t.SelectionLength = 0; };
             if (FotoImpostazioni != null) { FotoImpostazioni(f); return; }
             if (f.ShowDialog(this) != DialogResult.OK) return;
             if (scelta.Enabled && scelta.SelectedItem != null) a.Modello = Convert.ToString(scelta.SelectedItem);
+            a.AvvisoSpento = !avviso.Checked;
             var nuovi = t.Lines.Select(x => x.Trim().ToLowerInvariant().TrimStart('*', '.')).Where(x => x.Length > 2 && x.Contains(".") && !x.Contains(" ") && !x.Contains("/")).Distinct().ToList();
             if (nuovi.Count > 0) a.DominiFidati = nuovi;
             string nuova = cart.Text.Trim();
@@ -715,6 +855,52 @@ public class Finestra : Dialogo {
             Ricalcola(); Mostra();
             stato.Text = Lingua.T("finestra.impostazioni_salvate");
         }
+    }
+}
+
+// la conferma del togliere dall'elenco: dice che su GitHub non cambia niente e cosa si perde su questo computer. Il tasto di partenza è Annulla
+public class FinestraTogli : Dialogo {
+    public Bottone BTogli, BAnnulla;
+    public string Racconto;
+
+    public FinestraTogli(Accessi.Togliere t) {
+        Func<int, int> S = Aspetto.S;
+        Func<string, string> V = x => Dogana.RendiVisibile(x ?? "");
+        Text = Lingua.T("sparite.togli_dall_elenco");
+        try { Icon = Aspetto.Icona(); } catch { }
+        FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; MinimizeBox = false;
+        StartPosition = FormStartPosition.CenterParent; AutoScaleMode = AutoScaleMode.None;
+        BackColor = Aspetto.FONDO; ForeColor = Aspetto.TESTO; Font = Aspetto.NORMALE;
+        int m = S(24), lu = S(540) - m * 2, y = S(18);
+        Func<string, Font, Color, Label> riga = (testo, fo, co) => {
+            int h = TextRenderer.MeasureText(testo, fo, new Size(lu, 0), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix).Height + S(4);
+            var l = new Label { Text = testo, Font = fo, ForeColor = co, BackColor = Aspetto.FONDO, Bounds = new Rectangle(m, y, lu, h), UseMnemonic = false };
+            Controls.Add(l);
+            y += h + S(8);
+            return l;
+        };
+        riga(t.Repo.Count == 1 ? Lingua.T("sparite.togliere_una", "nome", V(t.Repo[0])) : Lingua.N("sparite.togliere_molte", t.Repo.Count), Aspetto.GRANDE, Aspetto.TESTO);
+        if (t.Repo.Count > 1) {
+            string nomi = string.Join(", ", t.Repo.Take(8).Select(V)) + (t.Repo.Count > 8 ? ", " + Lingua.N("sparite.e_altre", t.Repo.Count - 8) : "");
+            riga(nomi, Aspetto.NORMALE, Aspetto.MUTO);
+        }
+        var parti = new List<string> { Lingua.N("sparite.testi", t.Testi) };
+        if (t.Decisioni > 0) parti.Add(Lingua.N("sparite.decisioni", t.Decisioni));
+        parti.Add(Lingua.N("sparite.giorni", t.GiorniStorico));
+        Racconto = Lingua.T("sparite.su_github_niente") + "\n" + Lingua.T("sparite.si_perdono", "elenco", string.Join(", ", parti)) + "\n" + Lingua.T("sparite.se_torna");
+        foreach (var r in Racconto.Split('\n')) riga(r, Aspetto.NORMALE, Aspetto.TESTO);
+        y += S(8);
+        string siTesto = t.Repo.Count > 1 ? Lingua.T("sparite.togli_tutte") : Lingua.T("sparite.togli_dall_elenco");
+        BTogli = new Bottone { Text = siTesto, Fondo = Aspetto.AZZURRO, Scritta = Color.White, Linea = Color.Empty, DialogResult = DialogResult.OK };
+        BAnnulla = new Bottone { Text = Lingua.T("comune.annulla"), Fondo = Aspetto.CAPSULA, Scritta = Aspetto.TESTO, Linea = Aspetto.RIGA, DialogResult = DialogResult.Cancel };
+        int ls = Math.Max(S(120), BTogli.GetPreferredSize(Size.Empty).Width), ln = Math.Max(S(110), BAnnulla.GetPreferredSize(Size.Empty).Width);
+        BTogli.Bounds = new Rectangle(m + lu - ls, y, ls, S(36));
+        BAnnulla.Bounds = new Rectangle(m + lu - ls - S(10) - ln, y, ln, S(36));
+        Controls.AddRange(new Control[] { BAnnulla, BTogli });
+        ClientSize = new Size(S(540), y + S(36) + S(18));
+        CancelButton = BAnnulla;
+        Load += delegate { Aspetto.BarraScura(this); };
+        Shown += delegate { BAnnulla.Focus(); };
     }
 }
 

@@ -2,15 +2,17 @@
 
 [English](README.md) | **Italiano** | [Français](README.fr.md) | [Español](README.es.md) | [Deutsch](README.de.md)
 
-Un programma per Windows con cui gestisci le tue repo GitHub dai suoi tasti, senza conoscere Git: crei e modifichi le repo, carichi una cartella, pubblichi le release, scegli chi ci lavora. Legge anche quello che arriva sulle tue repo (issue, commenti, pull request e i rapporti col log degli errori di WeightMonitor), trattiene i testi sospetti prima che tu ci lavori e prepara il lavoro per una chat di Claude Code.
+Un programma per Windows con cui gestisci le tue repo GitHub dai suoi tasti, senza conoscere Git: crei e modifichi le repo, carichi una cartella, pubblichi le release, scegli chi ci lavora. Legge anche quello che arriva sulle tue repo (issue, commenti, pull request e i rapporti col log degli errori di WeightMonitor), trattiene i testi sospetti prima che tu ci lavori e prepara il lavoro per una chat di Claude Code. E ti mostra come sta andando ogni repo: visite, download, da dove arriva la gente.
 
 **Il programma parla italiano, inglese, francese, spagnolo e tedesco.** Scegli la lingua la prima volta che lo apri e la cambi quando vuoi in **Impostazioni**.
 
 Non è affiliato a GitHub né approvato da GitHub.
 
+[Sito e licenza](https://www.nscent.art/software)
+
 ## [Scarica Project Manager](https://github.com/nscentart/Project-Manager-for-GitHub/releases/latest/download/ProjectManager.exe)
 
-L'impronta SHA-256 del file sta nelle note della pagina [Releases](https://github.com/nscentart/Project-Manager-for-GitHub/releases). Il programma non si aggiorna da solo: per aggiornarlo, scarica di nuovo il file.
+L'impronta SHA-256 del file sta nelle note della pagina [Releases](https://github.com/nscentart/Project-Manager-for-GitHub/releases). Non si aggiorna mai da solo: ti avvisa, e decidi tu.
 
 ![La finestra del programma, in inglese, con dati d'esempio](docs/finestra.png)
 
@@ -27,7 +29,26 @@ C'è un file solo: `ProjectManager.exe`. Aprilo e scegli **Installa** o **Usa se
 
 **Avvisi di Windows.** L'exe non ha un certificato di firma per Windows, per via del costo. SmartScreen può mostrare «Windows ha protetto il PC»: si prosegue con «Ulteriori informazioni», poi «Esegui comunque». Con Smart App Control attivo, Windows può bloccarlo del tutto, e non possiamo promettere che nessun antivirus lo segnalerà mai. Puoi leggere il codice o compilarlo tu.
 
-**Per controllare il file scaricato**, lancia questo in PowerShell e confronta il risultato con l'impronta nelle note della release: `Get-FileHash ProjectManager.exe -Algorithm SHA256`. Se coincidono, il file è quello pubblicato: non vuol dire che sia senza difetti.
+## Aggiornare
+
+Project Manager non scarica e non installa mai niente da solo. Controlla soltanto: 20 secondi dopo l'avvio chiede una volta a GitHub, senza la tua chiave, se c'è una versione più nuova. Se c'è, una finestra mostra la versione nuova, la tua, l'impronta SHA-256 del file (se quella del file e quella delle note non coincidono, ti dice di non usarlo) e le note della release, con tre tasti: **Salta questa versione**, **Più tardi** e **Apri la pagina della versione**. Se GitHub non risponde, il programma non ti dà fastidio e scrive una riga nel log.
+
+**Apri la pagina della versione** apre nel browser la sua pagina su GitHub, dove vedi cosa è cambiato e il confronto col codice di prima. Qualunque cosa dica la risposta di GitHub, nel browser si apre solo una pagina della repo ufficiale. Per aggiornare:
+
+1. Da quella pagina scarica `ProjectManager.exe`, in una cartella nuova e vuota.
+2. Chiudi Project Manager, apri il file scaricato e scegli **Installa**: prende il posto della versione vecchia e riparte. Account e dati restano. Se il programma è ancora aperto, il file ti dice di chiuderlo prima.
+
+Se usi la copia senza installazione, basta usare l'exe nuovo al posto del vecchio.
+
+Il controllo si spegne da **Impostazioni**, alla voce **Nuove versioni**. **Controlla ora**, nello stesso punto, risponde sempre, anche a controllo spento o per una versione saltata. A controllo spento, l'ultima versione è comunque al link di download in cima a questa pagina.
+
+## Come verificare il file
+
+1. Scaricalo solo da questa pagina: è l'unico Project Manager ufficiale.
+2. Apri PowerShell nella cartella del file e scrivi: `Get-FileHash .\ProjectManager.exe -Algorithm SHA256`
+3. Il risultato deve essere identico all'impronta SHA-256 scritta nelle note della release.
+
+Se è identica, hai il file che abbiamo pubblicato. Questo non prova che sia privo di difetti: per quello c'è il codice, che puoi leggere qui.
 
 ## Prima apertura e account
 
@@ -59,8 +80,28 @@ I limiti, detti chiaramente:
 4. **Da lavorare**: i testi passati dalla dogana o approvati da te, divisi in log, bug, richieste, domande, recensioni, pull request e altro. I riassunti con Ollama (un modello sul tuo computer, gratis e senza rete) partono solo dal loro tasto e solo su questi testi, e anche la risposta ripassa dalla dogana.
 5. **Errori ricorrenti**: le righe dei log raggruppate per firma (numeri e percorsi tolti), con quanti rapporti, quante volte e quali versioni.
 6. **Pacchetto per Claude Code**: un `.md` per repo in `pacchetti\`, copiato anche negli appunti solo quando è per una sola repo pubblica. I testi esterni stanno in blocchi `text`, dichiarati come dati e non come istruzioni, e ciò che sembra una chiave viene coperto.
-7. **Pannello delle repo**: a sinistra le tue repo con l'etichetta privata o pubblica. A destra, per ognuna, la **Panoramica** in parole semplici (versione, chi la vede, collaboratori, licenza, README, segnalazioni, con **Cosa manca** in testa) e le schede qui sopra. **Tutte le repo** riassume tutto in una tabella. Il modello di Ollama, i siti fidati e la lingua stanno in **Impostazioni**. L'interruttore **Seguo le segnalazioni** in alto dice se segui le segnalazioni di quella repo.
+7. **Pannello delle repo**: a sinistra le tue repo con l'etichetta privata o pubblica. A destra, per ognuna, la **Panoramica** in parole semplici (versione, chi la vede, collaboratori, licenza, README, segnalazioni, con **Cosa manca** in testa) e le schede qui sopra. In cima alla **Panoramica** c'è **Come sta andando**, descritto qui sotto. **Tutte le repo** riassume tutto in una tabella. Il modello di Ollama, i siti fidati e la lingua stanno in **Impostazioni**. L'interruttore **Seguo le segnalazioni** in alto dice se segui le segnalazioni di quella repo.
 8. **Gestisci**: la scheda coi tasti per lavorare su GitHub, descritta qui sotto.
+
+## Come sta andando
+
+A ogni **Aggiorna da GitHub**, per ogni repo che la tua chiave può leggere, il programma legge visite, cloni, da dove arriva la gente, le pagine più viste, i download per versione, stelle, copie e osservatori. **Tutte le repo** li mette in una tabella: Repo, Chi la vede, Versione, Visite 14 giorni, Download, Stelle, Segnalazioni da leggere, Errori. Nella pagina di una repo, **Come sta andando** li riassume in una frase, con visite e download giorno per giorno; sotto restano le schede di sempre.
+
+Se GitHub rifiuta uno di questi numeri (il traffico lo mostra solo a chi può scrivere nella repo), il programma dice «non disponibile» e il perché: mai uno 0 per un numero che non ha letto. Un errore su questi numeri non ferma il resto della lettura.
+
+GitHub tiene il traffico per 14 giorni. Per questo visite, visitatori unici, cloni e totale dei download di ogni repo si salvano giorno per giorno in `storico.json`, solo su questo computer: i giorni più vecchi restano lì e da nessun'altra parte.
+
+I limiti, detti chiaramente:
+
+- GitHub dice quanti sono passati, non chi.
+- I numeri arrivano con qualche ora di ritardo.
+- I download dal sito e da GitHub si contano insieme e comprendono anche i tuoi.
+- «Persone» è il totale dei 14 giorni dato da GitHub: i visitatori unici dei singoli giorni non si possono sommare.
+- GitHub dà solo il totale dei download: quelli giorno per giorno partono da quando il programma lo legge la prima volta.
+
+## Repo sparite
+
+Una repo che GitHub non elenca più passa in un gruppo chiuso in fondo, **Sparite (N)**, a sinistra e in tabella: si apre con un clic. **Togli dall'elenco**, nella sua pagina, la toglie; **Togli tutte**, nel gruppo, fa lo stesso con tutte le sparite che vedi (quelle di un altro account restano). La conferma dice che su GitHub non cambia niente e quanti testi scaricati, decisioni e giorni di storico si perdono su questo computer. Se una repo torna su GitHub, al prossimo aggiornamento torna da sola.
 
 ## Gestire le repo
 
@@ -91,7 +132,7 @@ Le protezioni:
 
 ## Dati
 
-In `%LOCALAPPDATA%\ProjectManager` (o nella cartella della variabile `GPM_DATI`): `archivio.json` (copia delle issue, le tue decisioni, riassunti, siti fidati, account collegati senza le chiavi, la cartella delle repo), `lingua.txt` (la lingua scelta), `licenza.txt` se hai aggiunto una licenza, `pacchetti\` e il log del programma. Un archivio di una versione precedente resta valido: l'account che usavi continua a entrare con Git.
+In `%LOCALAPPDATA%\ProjectManager` (o nella cartella della variabile `GPM_DATI`): `archivio.json` (copia delle issue, le tue decisioni, riassunti, siti fidati, account collegati senza le chiavi, la cartella delle repo), `lingua.txt` (la lingua scelta), `storico.json` (i numeri giorno per giorno: se si rovina, il programma lo mette da parte e ne inizia uno nuovo), `licenza.txt` se hai aggiunto una licenza, `pacchetti\` e il log del programma. Un archivio di una versione precedente resta valido: l'account che usavi continua a entrare con Git.
 
 ## Compilare e provare
 
@@ -104,7 +145,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1
 
 `compila.ps1` usa il csc del .NET Framework 4 che c'è già in Windows (C# 5), senza librerie di terzi.
 
-`prova.ps1` fa passare dalla dogana i testi di `prove\dogana` (la prima riga dice `ATTESO: pulito` oppure `ATTESO: sospetto`) ed è rosso se anche uno solo sbaglia. Un nuovo trucco visto in giro diventa prima un caso qui: lo vedi rosso, poi ripari il controllo. Le altre prove (lingue, organizzazioni, account, prima configurazione, scritture su un GitHub finto, installazione, licenza) usano dati finti e cartelle temporanee: restano fuori dalla rete e non toccano il programma installato né i tuoi dati veri.
+`prova.ps1` fa passare dalla dogana i testi di `prove\dogana` (la prima riga dice `ATTESO: pulito` oppure `ATTESO: sospetto`) ed è rosso se anche uno solo sbaglia. Un nuovo trucco visto in giro diventa prima un caso qui: lo vedi rosso, poi ripari il controllo. Le altre prove (lingue, organizzazioni, account, prima configurazione, scritture su un GitHub finto, installazione, licenza, numeri, repo sparite, avviso di versione nuova, riprova dopo la pubblicazione) usano dati finti e cartelle temporanee: restano fuori dalla rete e non toccano il programma installato né i tuoi dati veri.
 
 ## Licenza
 

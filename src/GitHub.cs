@@ -17,11 +17,13 @@ public class ErroreSenzaRete : Exception {
 
 public class ErroreGitHub : Exception {
     public int Codice;
+    public bool Limite;     // è il limite alle richieste, non un permesso che manca
     public ErroreGitHub(int codice, string testo) : base(testo) { Codice = codice; }
 }
 
 public static class GitHub {
-    const string API = "https://api.github.com";
+    const string API_VERA = "https://api.github.com";
+    static string API = API_VERA;
     static string token;
     static bool custodita;   // la chiave viene dalla Cassaforte, cioè la custodisce il programma: vedi Cliente.GuardaPermessi
     public static string Login;
@@ -45,6 +47,10 @@ public static class GitHub {
 
     public static void Usa(string nuovo, string login) { token = nuovo; Login = login; custodita = false; }
     public static void Esci() { token = null; Login = null; custodita = false; }
+
+    // solo per le prove: le stesse strade, contro il GitHub finto su questo computer
+    public static void SuServerDiProva(int porta) { API = "http://127.0.0.1:" + porta; }
+    public static void SuGitHubVero() { API = API_VERA; }
 
     // la strada per le scritture, con la stessa chiave: ogni lavoro ne prende una sua
     public static Cliente Scrivente() {
@@ -112,7 +118,7 @@ public static class GitHub {
             if (c == 401) throw new ErroreGitHub(c, Lingua.T("github.github_non_riconosce_piu_l"));
             // 403 vuol dire due cose: limite alle richieste (ci sono le intestazioni apposta) oppure nessun permesso
             if (c == 429 || (c == 403 && (h.Headers["Retry-After"] != null || h.Headers["X-RateLimit-Remaining"] == "0")))
-                throw new ErroreGitHub(c, Lingua.T("github.github_ha_messo_limite_alle"));
+                throw new ErroreGitHub(c, Lingua.T("github.github_ha_messo_limite_alle")) { Limite = true };
             if (c == 403) throw new ErroreGitHub(c, Lingua.T("github.github_non_permesso_leggerlo"));
             if (c == 404) throw new ErroreGitHub(c, Lingua.T("github.non_c_piu_github_non"));
             throw new ErroreGitHub(c, Lingua.T("github.github_ha_risposto_l_errore", "c", c));
@@ -290,6 +296,100 @@ public static class GitHub {
         else p.ReadmeDataErrore = null;
         if (riuscite > 0) p.LettoIl = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
         return p;
+    }
+
+    // ---------- i numeri di «Come sta andando» ----------
+
+    // un numero che manca o che non è un numero è una risposta che non capisco: non diventa mai uno 0
+    static long Conteggio(Dictionary<string, object> d, string k) {
+        object v;
+        if (!d.TryGetValue(k, out v)) throw new FormatException(k);
+        long n;
+        if (v is int) n = (int)v; else if (v is long) n = (long)v; else throw new FormatException(k);
+        if (n < 0) throw new FormatException(k);
+        return n;
+    }
+
+    // GitHub dà il traffico solo a chi può scrivere nella repo: qui il 403 ha un perché preciso
+    static object Traffico(string url) {
+        try { return Leggi(url); }
+        catch (ErroreGitHub e) {
+            if (e.Codice == 403 && !e.Limite) throw new ErroreGitHub(403, Lingua.T("github.traffico_solo_chi_scrive"));
+            throw;
+        }
+    }
+
+    static List<GiornoTraffico> GiorniDi(Dictionary<string, object> d, string lista) {
+        var g = new List<GiornoTraffico>();
+        foreach (var o in (IEnumerable)d[lista]) {
+            var x = (Dictionary<string, object>)o;
+            string t = S(x, "timestamp");
+            if (!Regex.IsMatch(t, @"^\d{4}-\d{2}-\d{2}")) throw new FormatException(lista);
+            g.Add(new GiornoTraffico { Giorno = t.Substring(0, 10), Conta = Conteggio(x, "count"), Unici = Conteggio(x, "uniques") });
+        }
+        return g;
+    }
+
+    static List<VoceTraffico> VociDi(object risposta, string nome) {
+        var l = new List<VoceTraffico>();
+        foreach (var o in (IEnumerable)risposta) {
+            var x = (Dictionary<string, object>)o;
+            l.Add(new VoceTraffico { Nome = S(x, nome), Titolo = S(x, "title"), Conta = Conteggio(x, "count"), Unici = Conteggio(x, "uniques") });
+        }
+        return l;
+    }
+
+    // come la Panoramica: si parte dalla lettura vecchia, ogni richiesta sta per conto suo. Si assegna solo a risposta capita per intero
+    public static NumeriRepo LeggiNumeri(RepoInfo r, NumeriRepo vecchi) {
+        var n = vecchi == null ? new NumeriRepo() : vecchi.Copia();
+        string b = API + "/repos/" + r.Nome;
+        int riuscite = 0;
+        Prova(r.Nome, "visite", () => {
+            var d = (Dictionary<string, object>)Traffico(b + "/traffic/views");
+            var g = GiorniDi(d, "views");
+            long tot = Conteggio(d, "count"), uni = Conteggio(d, "uniques");
+            n.VisiteGiorni = g; n.Visite = tot; n.VisiteUnici = uni; n.VisiteLette = true; riuscite++;
+        }, e => n.VisiteErrore = e);
+        Prova(r.Nome, "cloni", () => {
+            var d = (Dictionary<string, object>)Traffico(b + "/traffic/clones");
+            var g = GiorniDi(d, "clones");
+            long tot = Conteggio(d, "count"), uni = Conteggio(d, "uniques");
+            n.CloniGiorni = g; n.Cloni = tot; n.CloniUnici = uni; n.CloniLetti = true; riuscite++;
+        }, e => n.CloniErrore = e);
+        Prova(r.Nome, "provenienza", () => {
+            n.Fonti = VociDi(Traffico(b + "/traffic/popular/referrers"), "referrer"); n.FontiLette = true; riuscite++;
+        }, e => n.FontiErrore = e);
+        Prova(r.Nome, "pagine", () => {
+            n.Pagine = VociDi(Traffico(b + "/traffic/popular/paths"), "path"); n.PagineLette = true; riuscite++;
+        }, e => n.PagineErrore = e);
+        Prova(r.Nome, "download", () => {
+            var v = new List<VersioneScaricata>();
+            long tot = 0;
+            foreach (var d in Tutte(b + "/releases?per_page=100")) {
+                object bozza;
+                if (d.TryGetValue("draft", out bozza) && bozza is bool && (bool)bozza) continue;
+                var x = new VersioneScaricata { Tag = S(d, "tag_name") };
+                foreach (var o in (IEnumerable)d["assets"]) {
+                    var al = (Dictionary<string, object>)o;
+                    long q = Conteggio(al, "download_count");
+                    x.Allegati.Add(new AllegatoScaricato { Nome = S(al, "name"), Download = q });
+                    x.Download += q;
+                }
+                tot += x.Download;
+                v.Add(x);
+            }
+            n.Versioni = v; n.Download = tot; n.DownloadLetti = true; riuscite++;
+        }, e => n.DownloadErrore = e);
+        Prova(r.Nome, "stelle e copie", () => {
+            var d = (Dictionary<string, object>)Leggi(b);
+            long stelle = Conteggio(d, "stargazers_count"), copie = Conteggio(d, "forks_count"), oss = Conteggio(d, "subscribers_count");
+            string oggi = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            if (n.RepoLetta && stelle != n.Stelle) { n.StellePrima = n.Stelle; n.StelleCambiate = oggi; }
+            if (n.RepoLetta && copie != n.Copie) { n.CopiePrima = n.Copie; n.CopieCambiate = oggi; }
+            n.Stelle = stelle; n.Copie = copie; n.Osservatori = oss; n.RepoLetta = true; riuscite++;
+        }, e => n.RepoErrore = e);
+        if (riuscite > 0) n.LettoIl = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+        return n;
     }
 
     // una licenza che GitHub non riconosce: il nome è la prima riga del file, se sembra un nome di licenza

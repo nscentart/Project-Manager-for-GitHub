@@ -150,8 +150,10 @@ public class Conferma : Modulo {
     public bool Fatto;
     public FattiRepo Visti;
     public volatile bool Fermato;
+    public bool Riprova;   // il lavoro dopo la conferma può durare e dire a che punto è: si può fermare anche lì
     readonly bool scrivere;
     bool conPassi;
+    string letto = "";   // quello che si sta confermando: ci si torna quando i testi dell'attesa non sono più veri
 
     public Conferma(PortaScrittura p, string repo, string titolo, string tasto, bool scrivereNome, bool grave, Func<Cliente, FattiRepo, string> leggi, Action<Cliente, FattiRepo, string> fa) : base(p, titolo, 600, 460) {
         scrivere = scrivereNome;
@@ -165,6 +167,7 @@ public class Conferma : Modulo {
         var r = new Rectangle(M + Lu - S(240), S(410), S(240), S(36));
         EventHandler si = delegate {
             var v = Visti; string scritto = Nome.Text;
+            Fermato = false; conPassi = false;   // l'Annulla di prima valeva per il giro di prima
             Lavora<bool>(c => { fa(c, v, scritto); return true; }, x => { Fatto = true; DialogResult = DialogResult.OK; });
         };
         BSi = grave ? Rosso(tasto, r, si) : Tasto(tasto, true, r, si);
@@ -177,7 +180,7 @@ public class Conferma : Modulo {
             Lavora(c => { var f = Scrittura.Fatti(c, repo); return new KeyValuePair<FattiRepo, string>(f, leggi(c, f)); }, x => {
                 if (Fermato) { Close(); return; }   // l'Annulla è arrivato quando il controllo aveva già finito
                 Visti = x.Key;
-                Racconto.Text = V(Dice(x.Key)) + (P.Login != null ? Lingua.T("gestione.agisci_come", "login", V(P.Login)) : "") + "\n\n" + x.Value;
+                Racconto.Text = letto = V(Dice(x.Key)) + (P.Login != null ? Lingua.T("gestione.agisci_come", "login", V(P.Login)) : "") + "\n\n" + x.Value;
                 Chiede.Text = Lingua.T("gestione.confermare_scrivi", "nome", V(x.Key.Nome));
             });
         };
@@ -186,13 +189,17 @@ public class Conferma : Modulo {
 
     // un controllo lungo dice a che punto è e si può fermare: si ferma al passo dopo, e fino a lì non si è scritto niente
     public void Passo(string testo) {
-        if (Fermato) throw new ErroreScrittura(Lingua.T("gestione.controllo_fermato_non_ho_fatto"));
+        Controlla();
         InUi((Action)(() => { if (Fermato) return; conPassi = true; Racconto.Text = V(testo); Rifai(); }));
     }
 
-    protected override bool AncheAlLavoro(Bottone b) { return b == BNo && conPassi && Visti == null && !Fermato; }
+    // subito prima di scrivere: l'Annulla vale fino a qui, dopo la richiesta è partita e non si richiama
+    public void Controlla() { if (Fermato) throw new ControlloFermato(Lingua.T("gestione.controllo_fermato_non_ho_fatto")); }
+
+    protected override bool AncheAlLavoro(Bottone b) { return b == BNo && conPassi && !Fermato && (Visti == null || Riprova); }
     protected override bool Puoi(Bottone b) { return b == BNo || (Visti != null && (!scrivere || Nome.Text == Visti.Nome)); }
-    protected override void Sbaglio(Exception e) { if (Fermato && Visti == null) { Close(); return; } base.Sbaglio(e); if (Visti != null) return; Racconto.Text = Lingua.T("gestione.non_faccio_niente"); Racconto.Height = S(24); Nome.Visible = Chiede.Visible = false; Avviso.Bounds = new Rectangle(M, S(84), Lu, S(318)); }
+    // «Riprovo...» e «Mi fermo...» alla fine non sono più veri: si torna a quello che si stava confermando, e sotto c'è come è andata
+    protected override void Sbaglio(Exception e) { if (Fermato && Visti == null) { Close(); return; } base.Sbaglio(e); if (Visti != null) { Racconto.Text = letto; return; } Racconto.Text = Lingua.T("gestione.non_faccio_niente"); Racconto.Height = S(24); Nome.Visible = Chiede.Visible = false; Avviso.Bounds = new Rectangle(M, S(84), Lu, S(318)); }
 }
 
 // un campo solo. Con «fa» il lavoro parte da qui, altrimenti chi l'ha aperta legge Valore
@@ -580,11 +587,12 @@ public class FinestraRelease : Modulo {
 
     void Pubblica(bool ultima) {
         var r = Scelta();
-        using (var k = new Conferma(P, repo, ultima ? Lingua.T("gestione.pubblica_come_ultima_versione") : Lingua.T("gestione.pubblica_release"), Lingua.T("gestione.pubblica_tasto"), true, false, (c, f) => {
+        Conferma k = null;
+        k = new Conferma(P, repo, ultima ? Lingua.T("gestione.pubblica_come_ultima_versione") : Lingua.T("gestione.pubblica_release"), Lingua.T("gestione.pubblica_tasto"), true, false, (c, f) => {
             var ora = Scrittura.UnaRelease(c, f, r.Id); string u = Scrittura.Ultima(c, f);
             return Lingua.T("gestione.release_allegati_ultima_versione_adess", "tag", V(ora.Tag), "parte", (ora.Allegati.Count == 0 ? Lingua.T("gestione.nessuno_chi_scarica_non_trova") : V(string.Join(", ", ora.Allegati.Select(a => a.Nome)))), "parte2", (u.Length == 0 ? Lingua.T("comune.nessuna") : V(u)), "parte3", (ultima ? Lingua.T("gestione.questa_aggiornamenti_automatici_dei_pr") : Lingua.T("gestione.resta_quella")));
-        }, (c, f, s) => Scrittura.Pubblica(c, f, s, r.Id, ultima)))
-            if (P.Apri(k) == DialogResult.OK) { Bene(Lingua.T("gestione.pubblicata_2")); Rileggi(); }
+        }, (c, f, s) => Scrittura.PubblicaConRiprova(c, f, s, r.Id, ultima, t => k.Passo(t), () => k.Controlla())) { Riprova = true };
+        using (k) if (P.Apri(k) == DialogResult.OK) { Bene(Lingua.T("gestione.pubblicata_2")); Rileggi(); }
     }
 
     void Cancella() {

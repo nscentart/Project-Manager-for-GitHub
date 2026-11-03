@@ -2,15 +2,17 @@
 
 [English](README.md) | [Italiano](README.it.md) | **Français** | [Español](README.es.md) | [Deutsch](README.de.md)
 
-Un programme Windows pour gérer vos repos GitHub depuis ses boutons, sans connaître Git : créer et modifier des repos, envoyer un dossier, publier des releases, choisir qui y travaille. Il lit aussi ce qui arrive sur vos repos (issues, commentaires, pull requests et rapports contenant le journal d'erreurs de WeightMonitor), retient les textes suspects avant que vous ne les traitiez et prépare le travail pour une conversation Claude Code.
+Un programme Windows pour gérer vos repos GitHub depuis ses boutons, sans connaître Git : créer et modifier des repos, envoyer un dossier, publier des releases, choisir qui y travaille. Il lit aussi ce qui arrive sur vos repos (issues, commentaires, pull requests et rapports contenant le journal d'erreurs de WeightMonitor), retient les textes suspects avant que vous ne les traitiez et prépare le travail pour une conversation Claude Code. Et il montre comment ça se passe pour chaque repo : visites, téléchargements, d'où viennent les gens.
 
 **Le programme parle italien, anglais, français, espagnol et allemand.** Vous choisissez la langue à la première ouverture et vous pouvez la changer à tout moment dans **Paramètres**.
 
 Ni affilié à GitHub ni approuvé par GitHub.
 
+[Site web et licence](https://www.nscent.art/fr/software)
+
 ## [Télécharger Project Manager](https://github.com/nscentart/Project-Manager-for-GitHub/releases/latest/download/ProjectManager.exe)
 
-L'empreinte SHA-256 du fichier se trouve dans les notes de la page [Releases](https://github.com/nscentart/Project-Manager-for-GitHub/releases). Le programme ne se met pas à jour tout seul : pour le mettre à jour, téléchargez de nouveau le fichier.
+L'empreinte SHA-256 du fichier se trouve dans les notes de la page [Releases](https://github.com/nscentart/Project-Manager-for-GitHub/releases). Il ne se met jamais à jour tout seul : il vous prévient, et vous décidez.
 
 ![La fenêtre du programme, en anglais, avec des données d'exemple](docs/finestra.png)
 
@@ -27,7 +29,26 @@ Il n'y a qu'un seul fichier : `ProjectManager.exe`. Ouvrez-le et choisissez **In
 
 **Avertissements de Windows.** L'exe n'a pas de certificat de signature Windows, à cause de son coût. SmartScreen peut afficher « Windows a protégé votre ordinateur » : continuez avec « Informations complémentaires », puis « Exécuter quand même ». Si le Contrôle intelligent des applications est activé, Windows peut le bloquer entièrement, et nous ne pouvons pas promettre qu'aucun antivirus ne le signalera jamais. Vous pouvez lire le code ou le compiler vous-même.
 
-**Pour vérifier le fichier téléchargé**, lancez ceci dans PowerShell et comparez le résultat à l'empreinte indiquée dans les notes de la release : `Get-FileHash ProjectManager.exe -Algorithm SHA256`. Si elles correspondent, le fichier est bien celui qui a été publié, ce qui ne veut pas dire qu'il est sans défaut.
+## Mettre à jour
+
+Project Manager ne télécharge et n'installe jamais rien tout seul. Il se contente de vérifier : 20 secondes après le démarrage, il demande une fois à GitHub, sans votre clé, s'il existe une version plus récente. Si c'est le cas, une fenêtre affiche la nouvelle version, la vôtre, l'empreinte SHA-256 du fichier (si celle du fichier et celle des notes ne correspondent pas, elle vous dit de ne pas l'utiliser) et les notes de la release, avec trois boutons : **Ignorer cette version**, **Plus tard** et **Ouvrir la page de la version**. Si GitHub ne répond pas, le programme ne vous dérange pas et écrit une ligne dans son journal.
+
+**Ouvrir la page de la version** ouvre dans le navigateur sa page sur GitHub, où vous voyez ce qui a changé et la comparaison avec le code précédent. Quoi que dise la réponse de GitHub, le navigateur n'ouvre qu'une page du repo officiel. Pour mettre à jour :
+
+1. Depuis cette page, téléchargez `ProjectManager.exe` dans un dossier neuf et vide.
+2. Fermez Project Manager, ouvrez le fichier téléchargé et choisissez **Installer** : il prend la place de l'ancienne version et redémarre. Vos comptes et vos données restent. Si le programme est encore ouvert, le fichier vous demande de le fermer d'abord.
+
+Si vous utilisez la copie sans installation, il suffit d'utiliser le nouvel exe à la place de l'ancien.
+
+La vérification se désactive dans **Paramètres**, sous **Nouvelles versions**. **Vérifier maintenant**, au même endroit, répond toujours, même quand la vérification est désactivée ou pour une version ignorée. Quand elle est désactivée, la dernière version reste disponible au lien de téléchargement en haut de cette page.
+
+## Comment vérifier le fichier
+
+1. Téléchargez-le uniquement depuis cette page : c'est le seul Project Manager officiel.
+2. Ouvrez PowerShell dans le dossier du fichier et tapez : `Get-FileHash .\ProjectManager.exe -Algorithm SHA256`
+3. Le résultat doit être identique à l'empreinte SHA-256 écrite dans les notes de la release.
+
+S'il est identique, vous avez le fichier que nous avons publié. Cela ne prouve pas qu'il est sans défaut : pour cela, il y a le code, que vous pouvez lire ici.
 
 ## Première ouverture et comptes
 
@@ -59,8 +80,28 @@ Les limites, sans détour :
 4. **À traiter** : les textes qui ont passé le contrôle ou que vous avez approuvés, répartis en logs, bugs, demandes, questions, avis, pull requests et autres. Les résumés avec Ollama (un modèle sur votre ordinateur, gratuit et hors ligne) ne démarrent qu'avec leur bouton et seulement sur ces textes, et la réponse repasse elle aussi par le contrôle.
 5. **Erreurs récurrentes** : les lignes de log regroupées par signature (chiffres et chemins retirés), avec le nombre de rapports, le nombre de fois et les versions concernées.
 6. **Paquet pour Claude Code** : un `.md` par repo dans `pacchetti\`, copié aussi dans le presse-papiers uniquement s'il concerne un seul repo public. Les textes externes sont placés dans des blocs `text`, déclarés comme des données et non comme des instructions, et tout ce qui ressemble à une clé est masqué.
-7. **Panneau des repos** : à gauche, vos repos avec l'étiquette privé ou public. À droite, pour chacun, la **Vue d'ensemble** en termes simples (version, qui le voit, collaborateurs, licence, README, signalements, avec **Ce qui manque** en tête) et les onglets ci-dessus. **Tous les repos** résume tout dans un tableau. Le modèle Ollama, les sites de confiance et la langue se trouvent dans **Paramètres**. L'interrupteur **Suivre les signalements**, en haut, indique si vous suivez les signalements de ce repo.
+7. **Panneau des repos** : à gauche, vos repos avec l'étiquette privé ou public. À droite, pour chacun, la **Vue d'ensemble** en termes simples (version, qui le voit, collaborateurs, licence, README, signalements, avec **Ce qui manque** en tête) et les onglets ci-dessus. En haut de la **Vue d'ensemble** se trouve **Comment ça se passe**, décrit ci-dessous. **Tous les repos** résume tout dans un tableau. Le modèle Ollama, les sites de confiance et la langue se trouvent dans **Paramètres**. L'interrupteur **Suivre les signalements**, en haut, indique si vous suivez les signalements de ce repo.
 8. **Gérer** : l'onglet avec les boutons pour travailler sur GitHub, décrit ci-dessous.
+
+## Comment ça se passe
+
+À chaque **Actualiser depuis GitHub**, pour chaque repo que votre clé peut lire, le programme lit les visites, les clones, d'où viennent les gens, les pages les plus vues, les téléchargements par version, les étoiles, les forks et les observateurs. **Tous les repos** les présente dans un tableau : Repo, Qui le voit, Version, Visites sur 14 jours, Téléchargements, Étoiles, Signalements à lire, Erreurs. Sur la page d'un repo, **Comment ça se passe** les résume en une phrase, avec les visites et les téléchargements jour par jour ; les cartes habituelles restent en dessous.
+
+Si GitHub refuse l'un de ces chiffres (il ne montre le trafic qu'aux personnes qui peuvent écrire dans le repo), le programme indique « non disponible » et pourquoi : jamais un 0 pour un chiffre qu'il n'a pas lu. Une erreur sur ces chiffres n'arrête pas le reste de la lecture.
+
+GitHub conserve le trafic pendant 14 jours. C'est pourquoi les visites, les visiteurs uniques, les clones et le total des téléchargements de chaque repo sont enregistrés jour par jour dans `storico.json`, sur cet ordinateur uniquement : les jours plus anciens restent là et nulle part ailleurs.
+
+Les limites, dites clairement :
+
+- GitHub dit combien de personnes sont passées, pas qui.
+- Les chiffres arrivent avec quelques heures de retard.
+- Les téléchargements depuis le site et depuis GitHub sont comptés ensemble et comprennent aussi les vôtres.
+- « Personnes » est le total sur 14 jours donné par GitHub : les visiteurs uniques de chaque jour ne s'additionnent pas.
+- GitHub ne donne que le total des téléchargements : le détail jour par jour commence à la première lecture du programme.
+
+## Repos disparus
+
+Un repo que GitHub ne liste plus passe dans un groupe fermé en bas, **Disparus (N)**, à gauche et dans le tableau : un clic l'ouvre. **Retirer de la liste**, sur sa page, le retire ; **Tout retirer**, dans le groupe, fait de même pour tous les repos disparus que vous voyez (ceux d'un autre compte restent). La confirmation indique que rien ne change sur GitHub et combien de textes téléchargés, de décisions et de jours d'historique cet ordinateur perd. Si un repo revient sur GitHub, il réapparaît tout seul à la prochaine actualisation.
 
 ## Gérer les repos
 
@@ -91,7 +132,7 @@ Les protections :
 
 ## Données
 
-Dans `%LOCALAPPDATA%\ProjectManager` (ou le dossier de la variable `GPM_DATI`) : `archivio.json` (une copie des issues, vos décisions, les résumés, les sites de confiance, les comptes connectés sans leurs clés, le dossier des repos), `lingua.txt` (la langue choisie), `licenza.txt` si vous avez ajouté une licence, `pacchetti\` et le journal du programme. Une archive d'une version précédente reste valable : le compte que vous utilisiez continue à se connecter avec Git.
+Dans `%LOCALAPPDATA%\ProjectManager` (ou le dossier de la variable `GPM_DATI`) : `archivio.json` (une copie des issues, vos décisions, les résumés, les sites de confiance, les comptes connectés sans leurs clés, le dossier des repos), `lingua.txt` (la langue choisie), `storico.json` (les chiffres jour par jour : s'il est abîmé, le programme le met de côté et en commence un nouveau), `licenza.txt` si vous avez ajouté une licence, `pacchetti\` et le journal du programme. Une archive d'une version précédente reste valable : le compte que vous utilisiez continue à se connecter avec Git.
 
 ## Compiler et tester
 
@@ -104,7 +145,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1
 
 `compila.ps1` utilise le csc de .NET Framework 4 déjà présent dans Windows (C# 5), sans bibliothèque tierce.
 
-`prova.ps1` fait passer les textes de `prove\dogana` par le contrôle de douane (la première ligne indique `ATTESO: pulito`, attendu propre, ou `ATTESO: sospetto`, attendu suspect) et passe au rouge si un seul se trompe. Une nouvelle astuce repérée quelque part devient d'abord un cas de test ici : vous le voyez passer au rouge, puis vous corrigez le contrôle. Les autres tests (langues, organisations, comptes, configuration, écritures sur un faux GitHub, installation, licence) utilisent de fausses données et des dossiers temporaires : ils restent hors ligne et ne touchent ni au programme installé ni à vos vraies données.
+`prova.ps1` fait passer les textes de `prove\dogana` par le contrôle de douane (la première ligne indique `ATTESO: pulito`, attendu propre, ou `ATTESO: sospetto`, attendu suspect) et passe au rouge si un seul se trompe. Une nouvelle astuce repérée quelque part devient d'abord un cas de test ici : vous le voyez passer au rouge, puis vous corrigez le contrôle. Les autres tests (langues, organisations, comptes, configuration, écritures sur un faux GitHub, installation, licence, chiffres, repos disparus, avis de nouvelle version, nouvel essai après la publication) utilisent de fausses données et des dossiers temporaires : ils restent hors ligne et ne touchent ni au programme installé ni à vos vraies données.
 
 ## Licence
 

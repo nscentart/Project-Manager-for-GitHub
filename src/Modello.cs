@@ -34,6 +34,7 @@ public class RepoInfo {
     public string Ramo;         // il ramo principale (0.3)
     public Panorama Pannello;   // l'ultima lettura per la Panoramica (0.3); negli archivi vecchi non c'è e resta nullo
     public List<string> Conti;  // gli account collegati che la vedono (0.4); nullo = non si sa ancora
+    public NumeriRepo Numeri;   // l'ultima lettura per «Come sta andando» (1.1); negli archivi vecchi non c'è e resta nullo
 }
 
 public class Collaboratore {
@@ -60,6 +61,57 @@ public class Panorama {
     public Panorama Copia() { return (Panorama)MemberwiseClone(); }
 }
 
+// un giorno di traffico così come lo dà GitHub (1.1). «Giorno» è yyyy-MM-dd in UTC
+public class GiornoTraffico {
+    public string Giorno;
+    public long Conta, Unici;
+}
+
+// da dove arriva la gente, o quale pagina guarda: «Nome» è il sito o il percorso, «Titolo» c'è solo per le pagine
+public class VoceTraffico {
+    public string Nome, Titolo;
+    public long Conta, Unici;
+}
+
+public class AllegatoScaricato {
+    public string Nome;
+    public long Download;
+}
+
+public class VersioneScaricata {
+    public string Tag;
+    public long Download;
+    public List<AllegatoScaricato> Allegati = new List<AllegatoScaricato>();
+}
+
+// i numeri di «Come sta andando» (1.1), col modello di Panorama: ogni richiesta fallisce da sola, il dato vecchio resta con
+// l'errore accanto, e «...Letti» dice se quel dato è mai arrivato. Un numero mai letto non è uno 0: chi lo mostra guarda «...Letti».
+public class NumeriRepo {
+    public string LettoIl;      // dd/MM/yyyy HH:mm, l'ora di questo computer
+    public bool VisiteLette, CloniLetti, FontiLette, PagineLette, DownloadLetti, RepoLetta;
+    public string VisiteErrore, CloniErrore, FontiErrore, PagineErrore, DownloadErrore, RepoErrore;
+    public long Visite, VisiteUnici, Cloni, CloniUnici;     // i totali che GitHub dà per i 14 giorni: gli unici non si sommano
+    public List<GiornoTraffico> VisiteGiorni, CloniGiorni;
+    public List<VoceTraffico> Fonti, Pagine;
+    public long Download;       // il totale di tutte le versioni pubblicate
+    public List<VersioneScaricata> Versioni;
+    public long Stelle, Copie, Osservatori;
+    public long StellePrima = -1, CopiePrima = -1;          // il valore prima dell'ultimo cambio; -1 = mai cambiato da quando si legge
+    public string StelleCambiate, CopieCambiate;            // quando è cambiato, yyyy-MM-dd
+
+    public NumeriRepo Copia() { return (NumeriRepo)MemberwiseClone(); }
+}
+
+// un giorno dello storico sul computer: -1 = quel numero non si sa (non è uno 0)
+public class GiornoStorico {
+    public string Giorno;
+    public long Visite = -1, Unici = -1, Cloni = -1, Download = -1;   // Download è il totale fino a quel giorno, non quelli del giorno
+}
+
+public class ArchivioStorico {
+    public Dictionary<string, List<GiornoStorico>> Repo = new Dictionary<string, List<GiornoStorico>>();
+}
+
 // un account collegato. La chiave d'accesso non sta qui: la custodisce Windows (Cassaforte) oppure Git
 public class ContoGitHub {
     public string Login;
@@ -75,6 +127,8 @@ public class Archivio {
     public List<Elemento> Elementi = new List<Elemento>();
     public List<Decisione> Decisioni = new List<Decisione>();
     public List<string> DominiFidati = new List<string>();
+    public bool AvvisoSpento;       // niente domanda a GitHub all'avvio (1.1)
+    public string VersioneSaltata;  // la versione per cui si è scelto «salta questa»
 }
 
 // lo stato che si vede: deriva a ogni lettura da testo, dogana e decisione, non si salva

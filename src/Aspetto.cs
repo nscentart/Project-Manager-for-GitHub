@@ -18,15 +18,22 @@ public static class Aspetto {
     public static readonly Color AMBRA_S = Color.FromArgb(168, 100, 0), AMBRA_T = Color.FromArgb(255, 241, 219);
     public static readonly Color VERDE_S = Color.FromArgb(72, 118, 0), VERDE_T = Color.FromArgb(236, 247, 205);
 
-    public static readonly Font NORMALE = new Font("Segoe UI", 9.5f), PICCOLO = new Font("Segoe UI", 8.5f);
-    public static readonly Font FORTE = new Font("Segoe UI Semibold", 9.5f), PICCOLO_F = new Font("Segoe UI Semibold", 8.5f);
-    public static readonly Font GRANDE = new Font("Segoe UI Semibold", 15f), TITOLO = new Font("Segoe UI Semibold", 17f), MEDIO = new Font("Segoe UI Semibold", 11f);
+    public static Font NORMALE = new Font("Segoe UI", 9.5f), PICCOLO = new Font("Segoe UI", 8.5f);
+    public static Font FORTE = new Font("Segoe UI Semibold", 9.5f), PICCOLO_F = new Font("Segoe UI Semibold", 8.5f);
+    public static Font GRANDE = new Font("Segoe UI Semibold", 15f), TITOLO = new Font("Segoe UI Semibold", 17f), MEDIO = new Font("Segoe UI Semibold", 11f);
 
     public const TextFormatFlags UNA = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter;
     public const TextFormatFlags PIU = TextFormatFlags.NoPadding | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.TextBoxControl;
 
     public static float K = 1f;
     public static int S(int v) { return (int)Math.Round(v * K); }
+    public static float Vera() { using (var g = Graphics.FromHwnd(IntPtr.Zero)) return g.DpiX / 96f; }
+    // per le prove e le foto: una finestra a un'altra scala dello schermo, senza toccare quella di Windows. Simula(Vera()) rimette tutto com'era
+    public static void Simula(float scala) {
+        float f = scala / Vera();
+        K = scala;
+        NORMALE = new Font("Segoe UI", 9.5f * f); FORTE = new Font("Segoe UI Semibold", 9.5f * f); GRANDE = new Font("Segoe UI Semibold", 15f * f);
+    }
 
     public static int Larg(Graphics g, string s, Font f) { return TextRenderer.MeasureText(g, s ?? "", f, new Size(9999, 999), UNA).Width; }
     public static int Alt(Graphics g, string s, Font f, int larg) { return TextRenderer.MeasureText(g, s ?? "", f, new Size(Math.Max(1, larg), 9999), PIU).Height; }
@@ -116,15 +123,48 @@ public class Bottone : Button {
 public class RigaRepo {
     public RepoInfo R;
     public string Nome, Sotto;
+    public bool Gruppo, Aperto;   // la riga «Sparite (N)»: non è una repo e non resta mai scelta
     public int Quarantena, Lavorare;
     public override string ToString() { return Nome; }
 }
 
 // la colonna delle repo. Il nome sta sopra, etichetta e avvisi sotto: «non c'è più su GitHub» non si taglia mai.
 public class ListaRepo : ListBox {
+    public event Action GruppoCliccato;
+    const int WM_LBUTTONDOWN = 0x201, WM_LBUTTONDBLCLK = 0x203;
+
+    // il clic sul gruppo apre o chiude e basta: non deve spostare la scelta
+    protected override void WndProc(ref Message m) {
+        if (m.Msg == WM_LBUTTONDOWN || m.Msg == WM_LBUTTONDBLCLK) {
+            int xy = (int)m.LParam.ToInt64();
+            var p = new Point((short)(xy & 0xFFFF), (short)((xy >> 16) & 0xFFFF));
+            int i = IndexFromPoint(p);
+            if (i >= 0 && i < Items.Count && GetItemRectangle(i).Contains(p)) {
+                var r = Items[i] as RigaRepo;
+                if (r != null && r.Gruppo) { Focus(); if (GruppoCliccato != null) GruppoCliccato(); return; }
+            }
+        }
+        base.WndProc(ref m);
+    }
+
+    // per le prove: lo stesso clic, passando per la stessa strada, senza toccare il mouse
+    public void ClicSu(int indice) {
+        var r = GetItemRectangle(indice);
+        var m = Message.Create(Handle, WM_LBUTTONDOWN, IntPtr.Zero, (IntPtr)(((r.Y + r.Height / 2) << 16) | (r.X + r.Width / 2)));
+        WndProc(ref m);
+    }
+
     public ListaRepo() {
         DrawMode = DrawMode.OwnerDrawFixed; ItemHeight = Aspetto.S(56);
         BorderStyle = BorderStyle.None; IntegralHeight = false; BackColor = Aspetto.FONDO; ForeColor = Aspetto.TESTO;
+    }
+
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] internal static extern int SetWindowTheme(IntPtr h, string tema, string elenco);
+
+    // la barra di scorrimento scura come la colonna: col gruppo delle sparite aperto serve spesso (Windows 10 recente e 11; altrove resta quella di Windows)
+    protected override void OnHandleCreated(EventArgs e) {
+        base.OnHandleCreated(e);
+        try { SetWindowTheme(Handle, "DarkMode_Explorer", null); } catch { }
     }
     protected override void OnDrawItem(DrawItemEventArgs e) {
         if (e.Index < 0 || e.Index >= Items.Count) return;
@@ -132,6 +172,16 @@ public class ListaRepo : ListBox {
         using (var f = new SolidBrush(Aspetto.FONDO)) g.FillRectangle(f, b);
         Func<int, int> S = Aspetto.S;
         var c = new Rectangle(b.X + S(10), b.Y + S(3), b.Width - S(20), b.Height - S(6));
+        if (r.Gruppo) {
+            int cy = c.Y + c.Height / 2, xg = c.X + S(12);
+            var punti = r.Aperto ? new[] { new Point(xg, cy - S(3)), new Point(xg + S(10), cy - S(3)), new Point(xg + S(5), cy + S(3)) }
+                                 : new[] { new Point(xg + S(2), cy - S(5)), new Point(xg + S(8), cy), new Point(xg + S(2), cy + S(5)) };
+            var v = g.SmoothingMode; g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var fr = new SolidBrush(Aspetto.MUTO)) g.FillPolygon(fr, punti);
+            g.SmoothingMode = v;
+            Aspetto.T(g, r.Nome, Aspetto.FORTE, xg + S(18), c.Y, c.Right - xg - S(28), c.Height, Aspetto.MUTO);
+            return;
+        }
         if ((e.State & DrawItemState.Selected) != 0) {
             Aspetto.Pieno(g, c, S(8), Aspetto.CAPSULA);
             Aspetto.Pieno(g, new Rectangle(c.X + S(1), c.Y + S(10), S(3), c.Height - S(20)), S(1), Aspetto.AZZURRO);

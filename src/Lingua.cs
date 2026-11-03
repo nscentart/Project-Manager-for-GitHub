@@ -1,4 +1,4 @@
-// Lingua.cs (Project Manager 1.0, 03/11/2026): i testi che l'utente vede, in cinque lingue, col metodo di WeightMonitor. Stanno in
+// Lingua.cs (Project Manager 1.1, 03/11/2026): i testi che l'utente vede, in cinque lingue, col metodo di WeightMonitor. Stanno in
 // lingue\<codice>.txt, una riga «chiave=testo», dentro l'exe come risorse. Se manca un testo: lingua scelta, poi inglese, poi
 // italiano, poi la chiave: non si resta mai senza scritta e non si cade mai. I segnaposto {nome} si sostituiscono come testo
 // semplice, mai con string.Format: una parentesi sbagliata in una traduzione non deve poter far cadere il programma.
