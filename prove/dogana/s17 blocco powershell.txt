@@ -1,0 +1,6 @@
+ATTESO: sospetto
+Prova questo:
+
+```powershell
+Set-MpPreference -DisableRealtimeMonitoring $true
+```

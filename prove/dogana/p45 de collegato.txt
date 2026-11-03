@@ -1,0 +1,2 @@
+ATTESO: pulito
+Nach dem Update steht dort: Sie sind jetzt angemeldet, aber die Seite bleibt leer.

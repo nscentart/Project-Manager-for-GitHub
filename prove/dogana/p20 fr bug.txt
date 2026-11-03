@@ -1,0 +1,2 @@
+ATTESO: pulito
+L'application se ferme sans prévenir quand je clique sur Enregistrer. Version 1.2 sous Windows 11.

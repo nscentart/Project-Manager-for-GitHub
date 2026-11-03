@@ -1,0 +1,2 @@
+ATTESO: sospetto
+Il fix è qui: [github.com/nscentart/WeightMonitor](https://evil.example.com/fix)

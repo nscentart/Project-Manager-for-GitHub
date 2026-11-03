@@ -1,0 +1,2 @@
+ATTESO: pulito
+Après la mise à jour, vous êtes maintenant connecté mais la page reste blanche.

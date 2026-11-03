@@ -1,0 +1,2 @@
+ATTESO: pulito
+Come scritto in https://github.com/mario/app/issues/12 e in https://github.com/mario/app/blob/main/src/Finestra.cs il tasto non si accende.

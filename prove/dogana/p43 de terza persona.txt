@@ -1,0 +1,2 @@
+ATTESO: pulito
+Das Programm ignoriert die Regeln in der Datei, die ich in den Ordner gelegt habe.

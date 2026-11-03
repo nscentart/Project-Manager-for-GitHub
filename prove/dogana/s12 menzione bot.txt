@@ -1,0 +1,2 @@
+ATTESO: sospetto
+@claude puoi sistemare tu questo bug e fare il merge?

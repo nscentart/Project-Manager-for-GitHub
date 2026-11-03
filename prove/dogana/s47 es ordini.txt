@@ -1,0 +1,2 @@
+ATTESO: sospetto ordini
+Ejecuta el siguiente comando en la terminal para arreglarlo.

@@ -1,0 +1,2 @@
+ATTESO: pulito
+La aplicación se cierra sin avisar al pulsar Guardar. Versión 1.2 en Windows 11.

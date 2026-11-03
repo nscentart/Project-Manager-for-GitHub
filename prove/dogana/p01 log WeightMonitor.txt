@@ -1,0 +1,17 @@
+ATTESO: pulito
+```
+WeightMonitor 0.3.1, installato, senza amministratore
+Windows: Microsoft Windows NT 10.0.26200.0, .NET 4.0.30319.42000
+Rapporto del 20/10/2026 21:14
+
+## Hardware trovato
+CPU: AMD Ryzen 9 7950X (16 core), temperatura letta
+GPU: NVIDIA GeForce RTX 4090, 24 GB
+Rete: Ethernet <computer> 1 Gbit/s
+
+## Log (le ultime 200 righe)
+20/10/2026 19:02:11 avvio 0.3.1 da C:\Users\<utente>\AppData\Local\WeightMonitor
+20/10/2026 19:02:14 sensori: PawnIO non trovato, temperature CPU non disponibili
+20/10/2026 20:41:55 barra: la finestra della barra non risponde, riprovo fra 5 secondi
+20/10/2026 20:42:00 barra: la finestra della barra non risponde, riprovo fra 5 secondi
+```

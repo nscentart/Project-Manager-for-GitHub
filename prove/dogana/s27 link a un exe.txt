@@ -1,0 +1,2 @@
+ATTESO: sospetto
+Prova questa versione: https://github.com/mario/app/releases/download/v1/installa.exe

@@ -1,0 +1,2 @@
+ATTESO: pulito
+Ich kann das Skript nach dem Update nicht ausführen. Wenn ich das Skript starte, passiert nichts.

@@ -1,0 +1,6 @@
+ATTESO: pulito
+Ecco come si vede da me:
+
+![schermata](https://github.com/user-attachments/assets/1234abcd-12ab-34cd-56ef-1234567890ab)
+
+La barra della CPU è tagliata.

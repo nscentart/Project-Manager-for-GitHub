@@ -1,0 +1,2 @@
+ATTESO: pulito
+Je n'arrive pas à lancer le script après la mise à jour, j'exécute le code et rien ne se passe.

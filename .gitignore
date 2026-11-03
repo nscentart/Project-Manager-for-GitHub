@@ -1,0 +1,6 @@
+# compilati: si rifanno con compila.ps1, non si versionano
+bin/
+*.exe
+*.log
+.claude/settings.local.json
+STATO.md

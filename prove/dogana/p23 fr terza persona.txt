@@ -1,0 +1,2 @@
+ATTESO: pulito
+Le programme ignore les règles du fichier de configuration que j'ai mis dans le dossier.

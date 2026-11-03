@@ -1,0 +1,8 @@
+ATTESO: pulito
+When I run it on my laptop the bar disappears after a minute.
+
+```
+System.NullReferenceException: Object reference not set to an instance of an object.
+   at Sensori.Leggi() in C:\src\Sensori.cs:line 120
+```
+See also https://github.com/nscentart/WeightMonitor/issues/3

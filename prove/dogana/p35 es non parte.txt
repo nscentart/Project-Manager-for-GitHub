@@ -1,0 +1,2 @@
+ATTESO: pulito
+No puedo ejecutar el script después de actualizar, cuando ejecuto el código no pasa nada.

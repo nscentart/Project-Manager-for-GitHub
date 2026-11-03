@@ -1,0 +1,2 @@
+ATTESO: pulito
+Ciao, da quando ho aggiornato alla 0.3.3 la velocità della rete resta a zero. Ho Windows 11 e una scheda Wi-Fi Intel AX210. Quando lo lancio come amministratore funziona. Grazie!

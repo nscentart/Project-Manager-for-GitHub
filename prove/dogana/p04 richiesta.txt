@@ -1,0 +1,2 @@
+ATTESO: pulito
+Sarebbe bello poter scegliere i colori delle barre e aggiungere la temperatura degli SSD NVMe.

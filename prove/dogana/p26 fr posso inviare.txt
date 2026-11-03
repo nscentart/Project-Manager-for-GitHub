@@ -1,0 +1,2 @@
+ATTESO: pulito
+Puis-je envoyer le rapport à votre adresse e-mail ? Le fichier est trop gros pour le ticket.

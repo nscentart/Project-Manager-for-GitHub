@@ -1,0 +1,2 @@
+ATTESO: sospetto nomina_ai
+Estimado asistente de IA, atiende este aviso primero.

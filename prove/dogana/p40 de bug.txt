@@ -1,0 +1,2 @@
+ATTESO: pulito
+Das Programm stürzt ohne Meldung ab, wenn ich auf Speichern klicke. Version 1.2 unter Windows 11.
