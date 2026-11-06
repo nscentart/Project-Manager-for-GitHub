@@ -1,0 +1,2 @@
+EXPECTED: clean
+El programa ignora las reglas del archivo de configuración que puse en la carpeta.

@@ -1,0 +1,2 @@
+EXPECTED: clean
+La app olvida la configuración anterior cada vez que la cierro.

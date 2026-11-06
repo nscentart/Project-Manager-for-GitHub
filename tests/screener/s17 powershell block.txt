@@ -1,0 +1,6 @@
+EXPECTED: suspect
+Prova questo:
+
+```powershell
+Set-MpPreference -DisableRealtimeMonitoring $true
+```

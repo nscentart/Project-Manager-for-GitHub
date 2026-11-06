@@ -1,0 +1,2 @@
+EXPECTED: clean
+Sehr gutes Programm, ich nutze es jeden Tag. Nur eine Anmerkung: Die Symbole sind etwas klein.
