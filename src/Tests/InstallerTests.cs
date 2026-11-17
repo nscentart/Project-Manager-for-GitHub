@@ -41,6 +41,9 @@ public static partial class Installer {
             v("the version written in the exe is the right one", FileVersionInfo.GetVersionInfo(l.Exe).FileVersion == Program.Version);
 
             Directory.CreateDirectory(Path.Combine(data, "packages"));
+            Directory.CreateDirectory(Path.Combine(data, "exports"));
+            File.WriteAllText(Path.Combine(data, "exports", "mario_a_2026-11-03_1200.txt"), "x");
+            File.WriteAllText(Path.Combine(data, "exports", "my notes.txt"), "x");
             File.WriteAllText(Path.Combine(data, "archive.json"), "{}");
             File.WriteAllText(Path.Combine(data, "packages", "mario_a_2026-11-03_1200.md"), "x");
             File.WriteAllText(Path.Combine(data, "packages", "my notes.md"), "x");
@@ -51,32 +54,35 @@ public static partial class Installer {
             v("remove: the exe goes away, and the empty folder with it", Wait(() => !File.Exists(l.Exe) && !Directory.Exists(l.Folder)));
             v("remove: the Start menu goes away", !File.Exists(l.MenuStart));
             v("remove: the entry in Installed apps goes away", Registry.CurrentUser.OpenSubKey(l.Key) == null);
-            v("remove: the access keys go away", CredentialStore.FormatFindings(pref).Count == 0);
-            v("remove without data: the data stay", File.Exists(Path.Combine(data, "archive.json")) && File.Exists(Path.Combine(data, "packages", "mario_a_2026-11-03_1200.md")));
+            v("remove: the access keys go away", CredentialStore.ListNames(pref).Count == 0);
+            v("remove without data: the data stay", File.Exists(Path.Combine(data, "archive.json")) && File.Exists(Path.Combine(data, "packages", "mario_a_2026-11-03_1200.md")) && File.Exists(Path.Combine(data, "exports", "mario_a_2026-11-03_1200.txt")));
 
             v("install again: no error", Install(l) == null);
             File.WriteAllText(Path.Combine(l.Folder, "not-mine.txt"), "x");
             end = RemoveFromOutside(l, data, pref, "si");
             v("remove with data: finishes well", end == 0);
-            v("remove with data: ours go away", Wait(() => !File.Exists(l.Exe)) && !File.Exists(Path.Combine(data, "archive.json")) && !File.Exists(Path.Combine(data, "packages", "mario_a_2026-11-03_1200.md")));
-            v("remove with data: someone else's file among the packages stays", File.Exists(Path.Combine(data, "packages", "my notes.md")));
+            v("remove with data: ours go away", Wait(() => !File.Exists(l.Exe)) && !File.Exists(Path.Combine(data, "archive.json")) && !File.Exists(Path.Combine(data, "packages", "mario_a_2026-11-03_1200.md")) && !File.Exists(Path.Combine(data, "exports", "mario_a_2026-11-03_1200.txt")));
+            v("remove with data: someone else's file among the packages and the exports stays", File.Exists(Path.Combine(data, "packages", "my notes.md")) && File.Exists(Path.Combine(data, "exports", "my notes.txt")));
             string onlyData = Path.Combine(base_, "data-only");
             Directory.CreateDirectory(Path.Combine(onlyData, "packages"));
+            Directory.CreateDirectory(Path.Combine(onlyData, "exports"));
             File.WriteAllText(Path.Combine(onlyData, "packages", "mario_a_2026-11-03_1200.md"), "x");
+            File.WriteAllText(Path.Combine(onlyData, "exports", "mario_a_2026-11-03_1200.txt"), "x");
             RemoveData(onlyData);
-            v("remove with data: the empty packages folder goes away", !Directory.Exists(onlyData));
+            v("remove with data: the empty packages and exports folders go away", !Directory.Exists(onlyData));
             string everything = Path.Combine(base_, "data-everything");
             Directory.CreateDirectory(Path.Combine(everything, "packages"));
             Directory.CreateDirectory(Path.Combine(everything, "pacchetti"));
+            Directory.CreateDirectory(Path.Combine(everything, "exports"));
             var removable = new[] { "archive.json", "archive.json.bak", "archive.json.new", "archive.json.broken", "ProjectManager.log", "ProjectManager.log.old", "no-install.txt", "transition-declined.txt", "language.txt",
                 "archivio.json", "archivio.json.prima", "archivio.json.nuovo", "archivio.json.rotto", "ProjectManager.log.vecchio", "senza-installare.txt", "passaggio-no.txt", "lingua.txt",
-                Path.Combine("packages", "mario_a_2026-11-03_1200.md"), Path.Combine("pacchetti", "mario_a_2026-11-03_1200.md") };
+                Path.Combine("packages", "mario_a_2026-11-03_1200.md"), Path.Combine("pacchetti", "mario_a_2026-11-03_1200.md"), Path.Combine("exports", "mario_a_2026-11-03_1200.txt") };
             foreach (var name in removable) File.WriteAllText(Path.Combine(everything, name), "x");
             File.WriteAllText(Path.Combine(everything, "not-mine.txt"), "x");
             RemoveData(everything);
-            v("remove with data: every current and every old name goes away", removable.All(name => !File.Exists(Path.Combine(everything, name))) && !Directory.Exists(Path.Combine(everything, "packages")) && !Directory.Exists(Path.Combine(everything, "pacchetti")));
+            v("remove with data: every current and every old name goes away", removable.All(name => !File.Exists(Path.Combine(everything, name))) && !Directory.Exists(Path.Combine(everything, "packages")) && !Directory.Exists(Path.Combine(everything, "pacchetti")) && !Directory.Exists(Path.Combine(everything, "exports")));
             v("remove with data: someone else's file next to ours stays, and so does the folder", File.Exists(Path.Combine(everything, "not-mine.txt")));
-            v("the generated name is recognized", Package.NameGenerated(Path.GetFileName(Package.FileName("mario/a"))) && !Package.NameGenerated("a.md") && !Package.NameGenerated("note_2026.md"));
+            v("the generated name is recognized", TextExport.NameGenerated(Path.GetFileName(TextExport.FileName("mario/a"))) && !TextExport.NameGenerated("a.txt") && !TextExport.NameGenerated("note_2026.txt") && !TextExport.NameGenerated("mario_a_2026-11-03_1200.md"));
             v("remove with data: someone else's file in the data stays", File.Exists(Path.Combine(data, "not-mine.txt")));
             v("remove: someone else's file in the program folder stays", File.Exists(Path.Combine(l.Folder, "not-mine.txt")));
 
@@ -117,7 +123,7 @@ public static partial class Installer {
         using (var heldMutex = new Mutex(true, vec.Mutex)) v("transition: the old program, running, counts as open", Transition.Open(vec));
         v("transition: finishes without wrong steps", Transition.Run(vec, dataN, pn, true) == 0);
         v("transition: the access key is under the new name, identical", CredentialStore.Read(pn + "pippo") == "fake-old-test");
-        v("transition: the old key is gone", CredentialStore.FormatFindings(pv).Count == 0);
+        v("transition: the old key is gone", CredentialStore.ListNames(pv).Count == 0);
         v("transition: a key already under the new name is not overwritten", CredentialStore.Read(pn + "already") == "new-value");
         v("transition: archive and log are under the new name", L(Path.Combine(dataN, "archive.json")) == "{\"x\":1}" && L(Path.Combine(dataN, "archive.json.bak")) == "before" && L(Path.Combine(dataN, "ProjectManager.log")) == "line");
         v("transition: the packages are under the new name", L(Path.Combine(dataN, "packages", "a.md")) == "package");

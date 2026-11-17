@@ -65,7 +65,7 @@ public class UploadDialog : OperationDialog {
         string name = repo;
         Work(c => {
             var k = Writer.Prepare(folder, null);
-            var f = Writer.Done(c, name);
+            var f = Writer.Fetch(c, name);
             return Tuple.Create(k, f, k.Blocked ? new List<string>() : Writer.Replaced(c, f, k));
         }, x => {
             seen = x;

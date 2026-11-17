@@ -17,7 +17,6 @@ public static class Language {
     public static string Code { get { return current; } }
     public static bool Valid(string code) { return code != null && Array.IndexOf(Codes, code) >= 0; }
     public static string NameOf(string code) { int i = Array.IndexOf(Codes, code); return i < 0 ? code : Names[i]; }
-    public static string NameForModel() { return Fixed("language." + current); }
 
     public static string WindowsFrom() { return CultureFrom(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName); }
     public static string CultureFrom(string twoLetter) { return Valid(twoLetter) ? twoLetter : Fallback; }

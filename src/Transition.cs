@@ -47,7 +47,7 @@ public static class Transition {
 
     public static string Question(OldInstall v, string newData) {
         var things = new List<string>();
-        int n = CredentialStore.FormatFindings(v.CredentialStorePrefix).Count;
+        int n = CredentialStore.ListNames(v.CredentialStorePrefix).Count;
         if (n > 0) things.Add(Language.N("transition.saved_access_keys", n));
         if (v.DataStore != null && !Installer.Equal(v.DataStore, newData) && File.Exists(Path.Combine(v.DataStore, Legacy.ArchiveFile))) things.Add(Language.T("transition.the_data"));
         if (v.Program != null && Its(v.Program)) things.Add(Language.T("transition.old_copy_program_which_remove"));
@@ -73,7 +73,7 @@ public static class Transition {
     public static bool Needs(OldInstall v, string newData, string newPrefix) {
         try {
             if (v.Program != null && Its(v.Program)) return true;
-            if (CredentialStore.FormatFindings(v.CredentialStorePrefix).Count > 0) return true;
+            if (CredentialStore.ListNames(v.CredentialStorePrefix).Count > 0) return true;
             return v.DataStore != null && !Installer.Equal(v.DataStore, newData) && File.Exists(Path.Combine(v.DataStore, Legacy.ArchiveFile));
         } catch (Exception ex) { DataStore.Log("transition from the old name, check: " + ex.Message); return false; }
     }
@@ -81,7 +81,7 @@ public static class Transition {
     public static int Run(OldInstall v, string newData, string newPrefix, bool removeProgram) {
         int badly = 0;
         try {
-            foreach (var name in CredentialStore.FormatFindings(v.CredentialStorePrefix)) {
+            foreach (var name in CredentialStore.ListNames(v.CredentialStorePrefix)) {
                 string newValue = newPrefix + name.Substring(v.CredentialStorePrefix.Length);
                 if (CredentialStore.Read(newValue) != null || CredentialStore.Copy(name, newValue)) CredentialStore.Delete(name);
                 else { badly++; DataStore.Log("transition from the old name: an access key could not be moved"); }

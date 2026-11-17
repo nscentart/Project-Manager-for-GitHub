@@ -6,7 +6,7 @@ using System.Threading;
 using System.Windows.Forms;
 
 public class ManagementPage : Panel {
-    class Entry { public ThemedButton EntryButton; public Label Text; public Func<RepoFacts, string> Off, Describe, Name; public bool OnlyWithRepo = true, OrgOnly; }
+    class Entry { public ThemedButton EntryButton; public Label Text; public Func<RepoFacts, string> Off, Describe, Name; public bool OnlyWithRepo = true, OrgOnly, MissingOnly; }
 
     readonly WriteGateway P;
     readonly List<Entry> entries = new List<Entry>();
@@ -14,6 +14,7 @@ public class ManagementPage : Panel {
     public event EventHandler Changed;
     public event Action<string, string> Renamed;
     public event Action<string> Deleted;
+    public event Action<string> RemoveRequested;
     public RepoFacts Done;
     public string Error;
     public RepoInfo Repo;
@@ -57,6 +58,9 @@ public class ManagementPage : Panel {
         Title(Language.T("management.danger_zone"));
         var via = Line(Language.T("management.delete_repo"), null, Language.T("management.disappears_everyone_history_releases_type"), f => Permissions.Because(RepoAction.Deletion, f), delegate { DeleteRepo(); });
         via.EntryButton.Background = Theme.Red; via.EntryButton.TextColor = Color.White; via.EntryButton.Line = Color.Empty;
+        Title(Language.T("management.repo_gone"));
+        var away = Line(Language.T("missing.remove_list"), null, Language.T("missing.github_no_longer_lists_remove"), f => null, delegate { if (RemoveRequested != null && Repo != null) RemoveRequested(Repo.Name); });
+        away.OnlyWithRepo = false; away.MissingOnly = true;
         VisibleChanged += delegate { if (Visible && Repo != null && Done == null) Read(); };
         Resize += delegate { foreach (var v in entries) v.Text.Width = Math.Max(S(200), ClientSize.Width - v.Text.Left - S(24)); State.Width = Math.Max(S(200), ClientSize.Width - S(48)); };
         Redo();
@@ -99,7 +103,7 @@ public class ManagementPage : Panel {
         Redo();
         new Thread(() => {
             RepoFacts f = null; string e = null;
-            try { f = Writer.Done(P.Route(), name); }
+            try { f = Writer.Fetch(P.Route(), name); }
             catch (WriteException x) { e = x.Message; }
             catch (AccessException x) { e = x.Message; }
             catch (Exception x) { DataStore.Log("management: " + x.GetType().Name); e = Language.T("management.cant_read_repo_github"); }
@@ -113,14 +117,15 @@ public class ManagementPage : Panel {
             if (v.OrgOnly) v.EntryButton.Visible = v.Text.Visible = Done != null && Done.Organization;
             if (v.Name != null && Done != null) v.EntryButton.Text = v.Name(Done);
             string because;
-            if (!v.OnlyWithRepo) because = null;
+            if (v.MissingOnly) because = Repo == null ? Language.T("management.choose_repo_left") : Repo.Missing ? null : Language.T("management.remove_list_only_gone");
+            else if (!v.OnlyWithRepo) because = null;
             else if (Repo == null) because = Language.T("management.choose_repo_left");
             else if (Repo.Missing) because = Language.T("management.repo_no_longer_github");
             else if (Done == null) because = Error != null ? Language.T("management.dont_know_what_could_not") : Language.T("management.reading_permissions_github");
             else because = v.Off(Done);
             v.EntryButton.Enabled = because == null;
             v.Text.Text = because ?? (v.Describe == null ? "" : v.Describe(Done));
-            v.Text.ForeColor = because != null && Repo != null ? Theme.AmberDark : Theme.Gray;
+            v.Text.ForeColor = because != null && Repo != null && !v.MissingOnly ? Theme.AmberDark : Theme.Gray;
         }
         State.ForeColor = Error != null ? Theme.AmberDark : Theme.Gray;
         State.Text = Repo == null ? Language.T("management.create_new_repo_everything_else")

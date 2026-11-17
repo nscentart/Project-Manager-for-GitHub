@@ -64,11 +64,11 @@ public static class Writer {
             Admin = B(p, "admin"), Maintain = B(p, "maintain"), Push = B(p, "push"), Triage = B(p, "triage"), Pull = B(p, "pull") };
     }
 
-    public static RepoFacts Done(Client c, string repo) { return Read(c.Call("GET", "/repos/" + SafeRepo(repo), null).D); }
+    public static RepoFacts Fetch(Client c, string repo) { return Read(c.Call("GET", "/repos/" + SafeRepo(repo), null).D); }
 
     static RepoFacts ReloadFacts(Client c, RepoFacts seen, RepoAction a) {
         if (seen == null) throw new WriteException(Language.T("writes.first_need_read_repo_github"));
-        var f = Done(c, seen.Name);
+        var f = Fetch(c, seen.Name);
         if (f.Id != seen.Id || f.Name != seen.Name) throw new WriteException(Language.T("writes.repo_changed_github_meantime_nothing"));
         if (f.Private != seen.Private) throw new WriteException(Language.T("writes.while_looking_repo_became_nothing", "part", (f.Private ? Language.T("common.private") : Language.T("common.public"))));
         Permissions.Allow(a, f);

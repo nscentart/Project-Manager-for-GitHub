@@ -31,7 +31,7 @@ public class DeleteRepoDialog : OperationDialog {
         OpenButton.Visible = WithdrawButton.Visible = false;
         Shown += delegate {
             NameBox.Focus();
-            Work(c => Writer.Done(c, repo), f => {
+            Work(c => Writer.Fetch(c, repo), f => {
                 Seen = f;
                 Story.Text = Language.T("management.deletes_repo_all_files_history", "f", V(Describe(f)), "part", (f.Stars + f.Forks > 0 ? Language.T("management.other_people_use", "f", Stars(f), "f2", Forks(f)) : ""));
             });
@@ -48,7 +48,7 @@ public class DeleteRepoDialog : OperationDialog {
     void Next() {
         string written = NameBox.Text, who = P.Login; var seen = Seen;
         ShowNote("");
-        Work(c => { Writer.Done(c, repo); return P.AskDelete(); }, k => {
+        Work(c => { Writer.Fetch(c, repo); return P.AskDelete(); }, k => {
             Device = k; Pending = true;
             NameBox.ReadOnly = true;
             Code.Text = k.ForUser;

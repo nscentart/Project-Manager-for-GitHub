@@ -37,7 +37,7 @@ public class FilesDialog : OperationDialog {
 
     void ReadFileAgain() {
         string name = repo;
-        Work(c => { var f = Writer.Done(c, name); return new KeyValuePair<RepoFacts, List<RepoFile>>(f, Writer.FileList(c, f)); }, x => {
+        Work(c => { var f = Writer.Fetch(c, name); return new KeyValuePair<RepoFacts, List<RepoFile>>(f, Writer.FileList(c, f)); }, x => {
             done = x.Key;
             Lines.Items.Clear();
             foreach (var r in x.Value) Lines.Items.Add(new ListViewItem(new[] { V(r.Path), r.ByteSize < 1024 ? Language.T("management.b", "size", r.ByteSize) : Language.T("management.kb_2", "size", r.ByteSize / 1024) }) { Tag = r.Path });

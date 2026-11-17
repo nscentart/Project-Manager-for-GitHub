@@ -9,7 +9,7 @@ using System.Web.Script.Serialization;
 public static class DataStore {
     public const string DataVariable = "PM_DATA_DIR", ReposVariable = "PM_REPOS_DIR";
     public const string ArchiveFile = "archive.json", HistoryFile = "history.json", LicenseFile = "license.txt", LanguageFile = "language.txt",
-        NoInstallFile = "no-install.txt", TransitionDeclinedFile = "transition-declined.txt", PackagesFolder = "packages", LogFile = "ProjectManager.log";
+        NoInstallFile = "no-install.txt", TransitionDeclinedFile = "transition-declined.txt", PackagesFolder = "packages", ExportsFolder = "exports", LogFile = "ProjectManager.log";
     public const string BackupSuffix = ".bak", TempSuffix = ".new", BrokenSuffix = ".broken", OldLogSuffix = ".old";
     public const string WorkFolder = "_lavoro";
 
@@ -17,7 +17,7 @@ public static class DataStore {
     public static readonly string Folder = DataOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ProjectManager");
     static string FilePath { get { return Path.Combine(Folder, ArchiveFile); } }
     static string LegacyFilePath { get { return Path.Combine(Folder, Legacy.ArchiveFile); } }
-    public static string Packages { get { return Path.Combine(Folder, PackagesFolder); } }
+    public static string Exports { get { return Path.Combine(Folder, ExportsFolder); } }
     public static string ReposFolder;
     public static readonly string[] DefaultTrustedDomains = { "github.com", "githubusercontent.com" };
 

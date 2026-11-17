@@ -36,8 +36,7 @@ public static class Legacy {
             "Chiave", "Key", "Numero", "Number", "Tipo", "Type", "Titolo", "Title", "Autore", "Author", "Testo", "Text",
             "Etichette", "Labels", "Creato", "Created", "Aggiornato", "Updated", "Aperta", "State") },
         { typeof(Decision), Map(
-            "Chiave", "Key", "Impronta", "Fingerprint", "Stato", "State", "Quando", "When", "Riassunto", "Summary",
-            "RiassuntoImpronta", "SummaryFingerprint", "RiassuntoModello", "SummaryModel") },
+            "Chiave", "Key", "Impronta", "Fingerprint", "Stato", "State", "Quando", "When") },
         { typeof(RepoInfo), Map(
             "Nome", "Name", "Descrizione", "Description", "Proprietario", "Owner", "Privata", "Private",
             "Seguita", "Followed", "Mia", "Mine", "Organizzazione", "Organization", "Dal", "Since", "Sparita", "Missing",
@@ -70,7 +69,7 @@ public static class Legacy {
         { typeof(HistoryArchive), Map() },
         { typeof(GitHubAccount), Map("Origine", "Origin") },
         { typeof(Archive), Map(
-            "UltimoAggiornamento", "LastUpdate", "Modello", "Model", "Filtro", "Filter", "CartellaRepo", "ReposFolder",
+            "UltimoAggiornamento", "LastUpdate", "Filtro", "Filter", "CartellaRepo", "ReposFolder",
             "Conti", "Accounts", "Elementi", "Items", "Decisioni", "Decisions", "DominiFidati", "TrustedDomains",
             "AvvisoSpento", "UpdateNoticeOff", "VersioneSaltata", "SkippedVersion") }
     };

@@ -7,6 +7,8 @@ using System.Windows.Forms;
 
 public class RepoList : ListBox {
     public event Action GroupClicked;
+    public event Action<int, Point> RowRightClicked;
+    public event Action DeletePressed;
     const int WmLButtonDown = 0x201, WmLButtonDblClk = 0x203;
 
     protected override void WndProc(ref Message m) {
@@ -21,6 +23,20 @@ public class RepoList : ListBox {
         }
         base.WndProc(ref m);
     }
+
+    protected override void OnMouseUp(MouseEventArgs e) {
+        base.OnMouseUp(e);
+        if (e.Button != MouseButtons.Right) return;
+        int i = IndexFromPoint(e.Location);
+        if (i >= 0 && i < Items.Count && GetItemRectangle(i).Contains(e.Location) && RowRightClicked != null) RowRightClicked(i, e.Location);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e) {
+        base.OnKeyDown(e);
+        if (e.KeyCode == Keys.Delete && DeletePressed != null) { e.Handled = true; DeletePressed(); }
+    }
+
+    public void PressDelete() { OnKeyDown(new KeyEventArgs(Keys.Delete)); }
 
     public void ClickIndex(int index) {
         var r = GetItemRectangle(index);

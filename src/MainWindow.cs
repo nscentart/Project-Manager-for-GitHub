@@ -14,7 +14,6 @@ public class MainWindow : Dialog {
     Archive a;
     List<Entry> entries = new List<Entry>();
     List<RecurringError> errors = new List<RecurringError>();
-    List<string> models = new List<string>();
     Dictionary<string, int> handovers = new Dictionary<string, int>();
     bool busy;
     bool missingOpen;
@@ -51,6 +50,7 @@ public class MainWindow : Dialog {
     public RepoInfo ChoiceForTest { get { return Choice(); } }
     public void BusyForTest(bool si) { busy = si; }
     public void UpdateForTest() { RefreshAll(); }
+    public ManagementPage ManagementForTest { get { return management; } }
     public bool BusyNow { get { return busy; } }
     public static Func<Form, DialogResult> RemoveResponse;
     public static Func<Form, DialogResult> NoticeResponse;
@@ -100,6 +100,8 @@ public class MainWindow : Dialog {
         repo = new RepoList { Dock = DockStyle.Fill };
         repo.SelectedIndexChanged += delegate { if (!loading) { if (OnGroup()) return; lastSelected = repo.SelectedIndex; Fill(); } };
         repo.GroupClicked += OpenCloseMissing;
+        repo.RowRightClicked += (i, p) => { var menu = RowMenu(i); if (menu != null) menu.Show(repo, p); };
+        repo.DeletePressed += RemoveSelectedMissing;
         var choices = new Panel { Dock = DockStyle.Top, Height = S(112), BackColor = Theme.Background };
         Func<string, int, Label> above = (x, y) => new Label { Text = x, Font = Theme.Small, ForeColor = Theme.Muted, BackColor = Theme.Background, Bounds = new Rectangle(S(20), y, S(232), S(18)), UseMnemonic = false };
         accountCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Capsule, ForeColor = Theme.Text, Bounds = new Rectangle(S(20), S(18), S(232), S(28)) };
@@ -131,11 +133,12 @@ public class MainWindow : Dialog {
         overview = new OverviewPage { Dock = DockStyle.Fill };
         overview.ChosenRepo += r => { for (int i = 0; i < repo.Items.Count; i++) if (((RepoRow)repo.Items[i]).R == r) repo.SelectedIndex = i; };
         overview.GroupClicked += OpenCloseMissing;
-        overview.RemoveAll += delegate { Remove(VisibleRepo().Where(x => x.Missing).Select(x => x.Name).ToList()); };
+        overview.RemoveAll += RemoveAllMissing;
         overview.RemoveThis += delegate { var s = Choice(); if (s != null) Remove(new List<string> { s.Name }); };
         tabs.Entries.Add(new TabBar.Entry { Name = Language.T("window.overview"), Page = overview });
         management = new ManagementPage(WriteGateway.Real(new RealGateway(), RealRoute)) { BusyCheck = () => busy };
         management.Changed += delegate { RefreshAll(); };
+        management.RemoveRequested += name => Remove(new List<string> { name });
         management.Renamed += (oldName, newName) => { lock (this) Writer.RenameInArchive(a, oldName, newName); lock (history) History.Rename(history, oldName, newName); Save(); SaveHistory(); Recalculate(); Render(); RefreshAll(); };
         management.Deleted += name => { lock (this) Writer.MarkDeleted(a, name); Save(); Recalculate(); Render(); RefreshAll(); };
         tabs.Entries.Add(new TabBar.Entry { Name = Language.T("window.manage"), Page = management });
@@ -146,15 +149,14 @@ public class MainWindow : Dialog {
             ButtonAction(Language.T("window.open_github"), false, delegate { OpenOnGitHub(quarantineLabel); }));
         quarantineTitle.Alarm = true;
         workTitle = Tab(Language.T("common.to_work_on"), out workLabel, out workBox,
-            new[] { Language.T("window.type"), Language.T("common.repo"), "#", Language.T("common.title"), Language.T("window.author"), Language.T("window.date"), Language.T("window.summary") }, new[] { 90, 220, 50, 300, 110, 110, 380 },
-            ButtonAction(Language.T("window.create_package_claude_code"), true, delegate { CreatePackage(); }),
-            ButtonAction(Language.T("window.summarize_ollama"), false, delegate { Summarize(); }),
+            new[] { Language.T("window.type"), Language.T("common.repo"), "#", Language.T("common.title"), Language.T("window.author"), Language.T("window.date") }, new[] { 90, 220, 50, 380, 130, 110 },
+            ButtonAction(Language.T("window.export_text_file"), true, delegate { ExportText(); }),
             ButtonAction(Language.T("window.mark_done"), false, delegate { Decide(workLabel, "done", false); }),
             ButtonAction(Language.T("window.back_quarantine"), false, delegate { Decide(workLabel, "quarantine", false); }),
             ButtonAction(Language.T("window.open_github"), false, delegate { OpenOnGitHub(workLabel); }));
         tErr = Tab(Language.T("window.recurring_errors"), out lErr, out dErr,
             new[] { Language.T("window.reports_2"), Language.T("window.times_2"), Language.T("window.versions"), Language.T("window.last_time"), Language.T("common.repo"), Language.T("window.error") }, new[] { 70, 60, 110, 110, 200, 640 },
-            ButtonAction(Language.T("window.create_package_claude_code"), true, delegate { CreatePackage(); }));
+            ButtonAction(Language.T("window.export_text_file"), true, delegate { ExportText(); }));
         tErr.Alarm = true;
         archiveTitle = Tab(Language.T("window.archive"), out archiveLabel, out archiveBox,
             new[] { Language.T("common.status"), Language.T("common.repo"), "#", Language.T("common.title"), Language.T("window.author"), Language.T("window.decided_on") }, new[] { 90, 200, 50, 360, 120, 120 },
@@ -169,7 +171,6 @@ public class MainWindow : Dialog {
             Theme.DarkBar(this); tabs.Choose(0); LoadAll();
             openWindow = this;
             if (ScreenshotOnly) return;
-            SearchModels();
             if (a.Accounts.Count > 0) RefreshAll();
             if (!noticeStarted) {
                 noticeStarted = true;
@@ -282,6 +283,23 @@ public class MainWindow : Dialog {
         if (missingOpen && s != null && s.Missing) { loading = true; repo.SelectedIndex = 0; lastSelected = 0; loading = false; }
         missingOpen = !missingOpen;
         Render();
+    }
+
+    public ContextMenuStrip RowMenu(int index) {
+        var row = index >= 0 && index < repo.Items.Count ? repo.Items[index] as RepoRow : null;
+        if (row == null) return null;
+        var menu = new ContextMenuStrip();
+        if (row.Group) menu.Items.Add(Language.T("missing.remove_all_menu"), null, delegate { RemoveAllMissing(); });
+        else if (row.R != null && row.R.Missing) { string name = row.R.Name; menu.Items.Add(Language.T("missing.remove_menu"), null, delegate { Remove(new List<string> { name }); }); }
+        else { menu.Dispose(); return null; }
+        return menu;
+    }
+
+    void RemoveAllMissing() { Remove(VisibleRepo().Where(x => x.Missing).Select(x => x.Name).ToList()); }
+
+    void RemoveSelectedMissing() {
+        var row = repo.SelectedItem as RepoRow;
+        if (row != null && row.R != null && row.R.Missing) Remove(new List<string> { row.R.Name });
     }
 
     void Remove(List<string> names) {
@@ -451,8 +469,6 @@ public class MainWindow : Dialog {
         return s.Length > max ? s.Substring(0, max) + "..." : s;
     }
 
-    string SummaryOf(Entry v) { return v.D != null && v.D.SummaryFingerprint == v.Fingerprint ? v.D.Summary ?? "" : ""; }
-
     void Fill() {
         if (a == null) return;
         var vis = VisibleEntries().OrderByDescending(v => v.E.Updated).ToList();
@@ -460,8 +476,7 @@ public class MainWindow : Dialog {
             v.E.Repo, v.E.Number.ToString(), Line(ItemSorter.TitleOf(v.E, a), 120), Line(v.E.Author, 40), Data(v.E.Created),
             string.Join("; ", v.Reasons.Select(m => m.Explanation)) }, null);
         Populate(workLabel, vis.Where(v => v.State == "work"), v => new[] {
-            ItemSorter.CategoryName(v.Category), v.E.Repo, v.E.Number.ToString(), Line(ItemSorter.TitleOf(v.E, a), 120), Line(v.E.Author, 40), Data(v.E.Created),
-            Line(SummaryOf(v), 200) }, v => v.Category);
+            ItemSorter.CategoryName(v.Category), v.E.Repo, v.E.Number.ToString(), Line(ItemSorter.TitleOf(v.E, a), 120), Line(v.E.Author, 40), Data(v.E.Created) }, v => v.Category);
         Populate(archiveLabel, vis.Where(v => v.State == "done" || v.State == "rejected"), v => new[] {
             ItemSorter.StateName(v.State), v.E.Repo, v.E.Number.ToString(), Line(ItemSorter.TitleOf(v.E, a), 120), Line(v.E.Author, 40),
             v.D == null ? "" : Line(v.D.When, 20) }, null);
@@ -536,8 +551,6 @@ public class MainWindow : Dialog {
             sb.AppendLine(w.State == "quarantine" ? Language.T("window.why_quarantine") : Language.T("window.customs_check_flagged_approved_hand"));
             foreach (var m in w.Reasons) sb.AppendLine("  - " + m);
         }
-        string r = SummaryOf(w);
-        if (r.Length > 0) { sb.AppendLine(); sb.AppendLine(Language.T("window.summary_2", "summary_model", w.D.SummaryModel, "r", Screener.MakeVisible(r))); }
         sb.AppendLine();
         sb.AppendLine(Language.T("window.original_text_invisible_characters_appear"));
         sb.AppendLine(new string('_', 60));
@@ -695,61 +708,21 @@ public class MainWindow : Dialog {
         }
     }
 
-    void SearchModels() {
-        new Thread(() => {
-            try {
-                var m = Ollama.Models();
-                InUi(() => models = m);
-            } catch { InUi(() => models = new List<string>()); }
-        }) { IsBackground = true }.Start();
-    }
-
-    void Summarize() {
-        if (busy) return;
-        var sc = Choices(workLabel).Where(v => v.State == "work").ToList();
-        if (sc.Count == 0) { state.Text = Language.T("window.first_choose_one_more_texts_2"); return; }
-        string m = Ollama.Choose(models, a.Model);
-        if (m == null) { state.Text = Language.T("window.no_ollama_model_start_ollama"); SearchModels(); return; }
-        SetBusy(true, Language.T("window.summarizing_texts_computer_free", "n", sc.Count, "m", m));
-        new Thread(() => {
-            int done = 0, discarded = 0;
-            string error = null;
-            foreach (var v in sc) {
-                try {
-                    string r = Ollama.Summarize(m, v.Category, ItemSorter.TitleOf(v.E, a), v.E.Text ?? "");
-                    if (Screener.Examine("", r, a.TrustedDomains).Count > 0) { discarded++; continue; }
-                    lock (this) { var d = DecisionOf(v); d.Summary = r; d.SummaryFingerprint = v.Fingerprint; d.SummaryModel = m; }
-                    done++;
-                    int f2 = done;
-                    InUi(() => state.Text = Language.T("window.summarized_of", "n", f2, "n2", sc.Count));
-                } catch (Exception ex) { error = ex.Message; break; }
-            }
-            InUi(() => {
-                Save(); Recalculate(); Render();
-                SetBusy(false, Language.T("window.summaries_done", "done", done, "part", (discarded > 0 ? Language.T("window.discarded_suspicious", "discarded", discarded) : ""), "part2", (error != null ? Language.T("window.stopped", "error", error) : ".")));
-            });
-        }) { IsBackground = true }.Start();
-    }
-
-    void CreatePackage() {
+    void ExportText() {
         var r = Choice();
         var names = r != null ? new List<string> { r.Name }
                  : VisibleEntries().Where(v => v.State == "work").Select(v => v.E.Repo).Distinct().OrderBy(x => x).ToList();
         if (names.Count == 0) { state.Text = Language.T("window.nothing_work_2"); return; }
-        string lastPath = null, text = null;
-        foreach (var n in names) { text = Package.Text(a, n, entries, errors); lastPath = Package.Write(n, text); }
-        bool clipboard = names.Count == 1 && Package.GoesToClipboard(a.Repo.FirstOrDefault(x => x.Name == names[0]));
-        if (clipboard) try { Clipboard.SetText(text); } catch { }
+        string lastPath = null;
+        foreach (var n in names) lastPath = TextExport.Write(n, TextExport.Text(a, n, entries, errors));
         try { Process.Start(Explorer, "/select,\"" + lastPath + "\""); } catch { }
-        state.Text = clipboard ? Language.T("window.package_written_copied_clipboard", "last", lastPath)
-                   : names.Count == 1 ? Language.T("window.package_written_repo_private_dont", "last", lastPath)
-                   : Language.T("window.packages_written", "names", names.Count, "packages", DataStore.Packages);
+        state.Text = names.Count == 1 ? Language.T("window.text_file_written", "path", lastPath)
+                   : Language.T("window.text_files_written", "n", names.Count, "folder", DataStore.Exports);
     }
 
     void Settings() {
         if (busy) { state.Text = Language.T("common.wait_current_work_finish"); return; }
-        SearchModels();
-        using (var f = new Form { Text = Language.T("window.settings"), ClientSize = new Size(S(520), S(470 + 74 + 118)), StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
+        using (var f = new Form { Text = Language.T("window.settings"), ClientSize = new Size(S(520), S(470 + 74 + 118 - 102 + 46)), StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
                                   MinimizeBox = false, MaximizeBox = false, BackColor = Theme.Background, ForeColor = Theme.Text, Font = Font, AutoScaleMode = AutoScaleMode.None }) {
             Func<string, Font, Color, Rectangle, Label> makeLabel = (x, fo, co, re) => new Label { Text = x, Font = fo, ForeColor = co, Bounds = re, UseMnemonic = false, BackColor = Theme.Background };
             int m = S(24), lu = S(520) - m * 2, y0 = S(74);
@@ -757,29 +730,23 @@ public class MainWindow : Dialog {
             var languages = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Capsule, ForeColor = Theme.Text, Bounds = new Rectangle(m, S(44), S(220), S(28)) };
             foreach (var c in Language.Codes) languages.Items.Add(Language.NameOf(c));
             languages.SelectedIndex = Array.IndexOf(Language.Codes, Language.Code);
-            var l1 = makeLabel(Language.T("window.model_summaries"), Theme.Medium, Theme.Text, new Rectangle(m, y0 + S(20), lu, S(24)));
-            var s1 = makeLabel(Language.T("window.ollama_works_computer_free_offline"), Theme.Normal, Theme.Muted, new Rectangle(m, y0 + S(46), lu, S(22)));
-            var choice = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Capsule, ForeColor = Theme.Text, Bounds = new Rectangle(m, y0 + S(72), lu, S(28)) };
-            if (models.Count > 0) {
-                foreach (var x in models) choice.Items.Add(x);
-                choice.SelectedItem = Ollama.Choose(models, a.Model);
-            } else { choice.Items.Add(Language.T("window.no_model_ollama_off_not")); choice.SelectedIndex = 0; choice.Enabled = false; }
-            var l2 = makeLabel(Language.T("window.trusted_sites"), Theme.Medium, Theme.Text, new Rectangle(m, y0 + S(122), lu, S(24)));
-            var s2 = makeLabel(Language.T("window.one_site_per_line_links"), Theme.Normal, Theme.Muted, new Rectangle(m, y0 + S(148), lu, S(44)));
+            var l2 = makeLabel(Language.T("window.trusted_sites"), Theme.Medium, Theme.Text, new Rectangle(m, y0 + S(20), lu, S(24)));
+            var s2 = makeLabel(Language.T("window.one_site_per_line_links"), Theme.Normal, Theme.Muted, new Rectangle(m, y0 + S(46), lu, S(44)));
+            var s2b = makeLabel(Language.T("window.sites_outside_list_wait_quarantine"), Theme.Normal, Theme.Muted, new Rectangle(m, y0 + S(90), lu, S(44)));
             var t = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, Text = string.Join("\r\n", a.TrustedDomains), BackColor = Color.FromArgb(24, 25, 29), ForeColor = Theme.Text,
-                                  BorderStyle = BorderStyle.FixedSingle, Bounds = new Rectangle(m, y0 + S(196), lu, S(110)) };
-            var l3 = makeLabel(Language.T("window.repos_folder"), Theme.Medium, Theme.Text, new Rectangle(m, y0 + S(318), lu, S(24)));
-            var s3 = makeLabel(Language.T("window.optional_where_keep_repos_computer"), Theme.Normal, Theme.Muted, new Rectangle(m, y0 + S(342), lu, S(22)));
-            var folder = new TextBox { Text = a.ReposFolder ?? "", BackColor = Color.FromArgb(24, 25, 29), ForeColor = Theme.Text, BorderStyle = BorderStyle.FixedSingle, Bounds = new Rectangle(m, y0 + S(368), lu - S(110), S(26)) };
-            var sf = DarkButton(Language.T("window.browse")); sf.SetBounds(m + lu - S(100), y0 + S(366), S(100), S(30));
+                                  BorderStyle = BorderStyle.FixedSingle, Bounds = new Rectangle(m, y0 + S(140), lu, S(110)) };
+            var l3 = makeLabel(Language.T("window.repos_folder"), Theme.Medium, Theme.Text, new Rectangle(m, y0 + S(262), lu, S(24)));
+            var s3 = makeLabel(Language.T("window.optional_where_keep_repos_computer"), Theme.Normal, Theme.Muted, new Rectangle(m, y0 + S(286), lu, S(22)));
+            var folder = new TextBox { Text = a.ReposFolder ?? "", BackColor = Color.FromArgb(24, 25, 29), ForeColor = Theme.Text, BorderStyle = BorderStyle.FixedSingle, Bounds = new Rectangle(m, y0 + S(312), lu - S(110), S(26)) };
+            var sf = DarkButton(Language.T("window.browse")); sf.SetBounds(m + lu - S(100), y0 + S(310), S(100), S(30));
             sf.Click += delegate {
                 using (var d = new FolderBrowserDialog { Description = Language.T("window.folder_contains_repos"), ShowNewFolderButton = false, SelectedPath = folder.Text })
                     if (d.ShowDialog(f) == DialogResult.OK) folder.Text = d.SelectedPath;
             };
-            var l4 = makeLabel(Language.T("updates.new_versions"), Theme.Medium, Theme.Text, new Rectangle(m, y0 + S(410), lu, S(24)));
-            var notice = new CheckBox { Text = Language.T("updates.check_startup"), Checked = !a.UpdateNoticeOff, ForeColor = Theme.Text, BackColor = Theme.Background, UseMnemonic = false, AutoSize = false, Bounds = new Rectangle(m, y0 + S(438), lu - S(170), S(28)) };
-            var now = DarkButton(Language.T("updates.check_now")); now.SetBounds(m + lu - S(160), y0 + S(436), S(160), S(32));
-            var result = makeLabel("", Theme.Normal, Theme.Muted, new Rectangle(m, y0 + S(472), lu, S(40)));
+            var l4 = makeLabel(Language.T("updates.new_versions"), Theme.Medium, Theme.Text, new Rectangle(m, y0 + S(354), lu, S(24)));
+            var notice = new CheckBox { Text = Language.T("updates.check_startup"), Checked = !a.UpdateNoticeOff, ForeColor = Theme.Text, BackColor = Theme.Background, UseMnemonic = false, AutoSize = false, Bounds = new Rectangle(m, y0 + S(382), lu - S(170), S(28)) };
+            var now = DarkButton(Language.T("updates.check_now")); now.SetBounds(m + lu - S(160), y0 + S(380), S(160), S(32));
+            var result = makeLabel("", Theme.Normal, Theme.Muted, new Rectangle(m, y0 + S(416), lu, S(40)));
             now.Click += delegate {
                 now.Enabled = false;
                 result.Text = Language.T("updates.checking");
@@ -795,14 +762,13 @@ public class MainWindow : Dialog {
                     } catch (InvalidOperationException) { }
                 }) { IsBackground = true }.Start();
             };
-            var ok = CreateButton(Language.T("common.save"), true); ok.SetBounds(m + lu - S(130), y0 + S(528), S(130), S(36)); ok.DialogResult = DialogResult.OK;
-            var no = DarkButton(Language.T("common.cancel")); no.SetBounds(m + lu - S(130) - S(10) - S(110), y0 + S(528), S(110), S(36)); no.DialogResult = DialogResult.Cancel;
-            f.Controls.AddRange(new Control[] { l0, languages, l1, s1, choice, l2, s2, t, l3, s3, folder, sf, l4, notice, now, result, ok, no });
+            var ok = CreateButton(Language.T("common.save"), true); ok.SetBounds(m + lu - S(130), y0 + S(472), S(130), S(36)); ok.DialogResult = DialogResult.OK;
+            var no = DarkButton(Language.T("common.cancel")); no.SetBounds(m + lu - S(130) - S(10) - S(110), y0 + S(472), S(110), S(36)); no.DialogResult = DialogResult.Cancel;
+            f.Controls.AddRange(new Control[] { l0, languages, l2, s2, s2b, t, l3, s3, folder, sf, l4, notice, now, result, ok, no });
             f.CancelButton = no;
             f.Load += delegate { Theme.DarkBar(f); ok.Focus(); t.SelectionLength = 0; };
             if (SettingsScreenshot != null) { SettingsScreenshot(f); return; }
             if (f.ShowDialog(this) != DialogResult.OK) return;
-            if (choice.Enabled && choice.SelectedItem != null) a.Model = Convert.ToString(choice.SelectedItem);
             a.UpdateNoticeOff = !notice.Checked;
             var newItems = t.Lines.Select(x => x.Trim().ToLowerInvariant().TrimStart('*', '.')).Where(x => x.Length > 2 && x.Contains(".") && !x.Contains(" ") && !x.Contains("/")).Distinct().ToList();
             if (newItems.Count > 0) a.TrustedDomains = newItems;

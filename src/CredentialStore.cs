@@ -63,7 +63,7 @@ public static class CredentialStore {
 
     public static void Delete(string name) { CredDelete(name, Generic, 0); }
 
-    public static List<string> FormatFindings(string prefix) {
+    public static List<string> ListNames(string prefix) {
         var names = new List<string>();
         int howMany; IntPtr list;
         if (!CredEnumerate(prefix + "*", 0, out howMany, out list)) {
@@ -80,7 +80,7 @@ public static class CredentialStore {
         return names;
     }
 
-    public static void RemoveAll(string prefix) { foreach (var n in FormatFindings(prefix)) Delete(n); }
+    public static void RemoveAll(string prefix) { foreach (var n in ListNames(prefix)) Delete(n); }
 
     public static string NameOf(string login) { return Prefix + (login ?? "").ToLowerInvariant(); }
 }

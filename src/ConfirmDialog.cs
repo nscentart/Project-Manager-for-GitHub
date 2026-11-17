@@ -37,7 +37,7 @@ public class ConfirmDialog : OperationDialog {
         });
         Shown += delegate {
             if (write) NameBox.Focus(); else NoButton.Focus();
-            Work(c => { var f = Writer.Done(c, repo); return new KeyValuePair<RepoFacts, string>(f, readFacts(c, f)); }, x => {
+            Work(c => { var f = Writer.Fetch(c, repo); return new KeyValuePair<RepoFacts, string>(f, readFacts(c, f)); }, x => {
                 if (Stopped) { Close(); return; }
                 Seen = x.Key;
                 Story.Text = confirmedText = V(Describe(x.Key)) + (P.Login != null ? Language.T("management.you_are_acting_as", "login", V(P.Login)) : "") + "\n\n" + x.Value;

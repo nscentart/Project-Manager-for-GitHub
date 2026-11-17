@@ -41,7 +41,7 @@ public static class ItemSorter {
             Decision d;
             decisions.TryGetValue(e.Key, out d);
             bool valid = d != null && d.Fingerprint == v.Fingerprint && !string.IsNullOrEmpty(d.State);
-            v.D = d != null && (d.Fingerprint == v.Fingerprint || d.SummaryFingerprint == v.Fingerprint) ? d : null;
+            v.D = d != null && d.Fingerprint == v.Fingerprint ? d : null;
             if (valid) v.State = d.State == "approved" ? "work" : d.State;
             else v.State = v.Reasons.Count > 0 ? "quarantine" : "work";
             entries.Add(v);

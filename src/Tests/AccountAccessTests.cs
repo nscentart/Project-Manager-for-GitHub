@@ -151,13 +151,13 @@ public static partial class AccountAccess {
             CredentialStore.Write(pref + "single", "single", Fake);
             CredentialStore.Write(pref + "double", "double", Fake + "2");
             v("credential store: it reads back the same", CredentialStore.Read(pref + "single") == Fake && CredentialStore.Read(pref + "double") == Fake + "2");
-            v("credential store: lists only its own", CredentialStore.FormatFindings(pref).OrderBy(x => x).SequenceEqual(new[] { pref + "double", pref + "single" }));
+            v("credential store: lists only its own", CredentialStore.ListNames(pref).OrderBy(x => x).SequenceEqual(new[] { pref + "double", pref + "single" }));
             CredentialStore.Write(pref + "single", "single", "replaced");
             v("credential store: it gets replaced", CredentialStore.Read(pref + "single") == "replaced");
             CredentialStore.Delete(pref + "single");
             v("credential store: once deleted it is gone", CredentialStore.Read(pref + "single") == null);
             CredentialStore.RemoveAll(pref);
-            v("credential store: remove everything", CredentialStore.FormatFindings(pref).Count == 0 && CredentialStore.Read(pref + "double") == null);
+            v("credential store: remove everything", CredentialStore.ListNames(pref).Count == 0 && CredentialStore.Read(pref + "double") == null);
             v("credential store: what is not there is null", CredentialStore.Read(pref + "never") == null);
         } catch (Exception ex) { v("credential store: " + ex.Message, false); }
         finally { try { CredentialStore.RemoveAll(pref); } catch { } }

@@ -33,7 +33,7 @@ public class FileEditorDialog : OperationDialog {
         Shown += delegate {
             if (path == null) Path.Focus();
             string name = repo, fileWhich = path;
-            Work(c => { var f = Writer.Done(c, name); return new KeyValuePair<RepoFacts, RepoFile>(f, fileWhich == null ? null : Writer.ReadFile(c, f, fileWhich)); }, x => {
+            Work(c => { var f = Writer.Fetch(c, name); return new KeyValuePair<RepoFacts, RepoFile>(f, fileWhich == null ? null : Writer.ReadFile(c, f, fileWhich)); }, x => {
                 seen = x.Key;
                 Header.Text = start + ". " + (seen.Private ? Language.T("management.private_repo") : Language.T("management.public_repo_anyone_see")) + (P.Login != null ? Language.T("management.you_are_acting_as_2", "login", V(P.Login)) : "");
                 if (!seen.Private) Header.ForeColor = Theme.Amber;

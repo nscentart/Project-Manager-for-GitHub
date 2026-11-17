@@ -120,6 +120,8 @@ public static partial class Installer {
         }
     }
 
+    static bool OldPackage(string name) { return System.Text.RegularExpressions.Regex.IsMatch(name, @"_\d{4}-\d{2}-\d{2}_\d{4}\.md$"); }
+
     static void RemoveData(string c) {
         var names = new List<string> {
             DataStore.ArchiveFile, DataStore.ArchiveFile + DataStore.BackupSuffix, DataStore.ArchiveFile + DataStore.TempSuffix, DataStore.ArchiveFile + DataStore.BrokenSuffix,
@@ -128,14 +130,16 @@ public static partial class Installer {
             DataStore.LogFile + Legacy.OldLogSuffix, Legacy.NoInstallFile, Legacy.TransitionDeclinedFile, Legacy.LanguageFile };
         foreach (var n in names)
             try { File.Delete(Path.Combine(c, n)); } catch (Exception ex) { DataStore.Log("uninstall, " + n + ": " + ex.Message); }
-        foreach (var folder in new[] { DataStore.PackagesFolder, Legacy.PackagesFolder }) {
+        foreach (var folder in new[] { DataStore.ExportsFolder, DataStore.PackagesFolder, Legacy.PackagesFolder }) {
             string p = Path.Combine(c, folder);
+            bool exported = folder == DataStore.ExportsFolder;
             try {
                 if (Directory.Exists(p)) {
-                    foreach (var f in Directory.GetFiles(p, "*.md")) if (Package.NameGenerated(Path.GetFileName(f))) File.Delete(f);
+                    foreach (var f in Directory.GetFiles(p, exported ? "*.txt" : "*.md"))
+                        if (exported ? TextExport.NameGenerated(Path.GetFileName(f)) : OldPackage(Path.GetFileName(f))) File.Delete(f);
                     if (Directory.GetFileSystemEntries(p).Length == 0) Directory.Delete(p, false);
                 }
-            } catch (Exception ex) { DataStore.Log("uninstall, packages: " + ex.Message); }
+            } catch (Exception ex) { DataStore.Log("uninstall, " + folder + ": " + ex.Message); }
         }
         try { Directory.Delete(c, false); } catch (IOException) { }
     }

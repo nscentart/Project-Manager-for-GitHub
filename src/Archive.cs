@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 
 public class Archive {
-    public string Login, LastUpdate, Model;
+    public string Login, LastUpdate;
     public string Filter;
     public string ReposFolder;
     public List<GitHubAccount> Accounts = new List<GitHubAccount>();

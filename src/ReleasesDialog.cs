@@ -42,7 +42,7 @@ public class ReleasesDialog : OperationDialog {
 
     void ReadFileAgain() {
         string name = repo;
-        Work(c => { var f = Writer.Done(c, name); return new KeyValuePair<RepoFacts, List<ReleaseInfo>>(f, Writer.Release(c, f)); }, x => {
+        Work(c => { var f = Writer.Fetch(c, name); return new KeyValuePair<RepoFacts, List<ReleaseInfo>>(f, Writer.Release(c, f)); }, x => {
             done = x.Key;
             Lines.Items.Clear();
             foreach (var r in x.Value) Lines.Items.Add(new ListViewItem(new[] { V(r.Tag), V(r.Title), r.Draft ? Language.T("management.draft") : r.Preview ? Language.T("management.pre_release") : Language.T("management.published"), r.Assets.Count == 0 ? Language.T("common.none_3") : V(string.Join(", ", r.Assets.Select(a => a.Name))) }) { Tag = r });

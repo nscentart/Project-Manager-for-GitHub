@@ -41,12 +41,12 @@ public static class RetryTests {
                 Action<string> step = t => steps.Add(t);
 
                 var r0 = repo();
-                var f0 = Writer.Done(c, r0.Name);
+                var f0 = Writer.Fetch(c, r0.Name);
                 string e0 = Error(() => Writer.PublishWithRetry(c, f0, r0.Name, 5, true, step));
                 v("right away: published, one attempt, no step", e0 == null && !r0.Release[0].Draft && patch(r0) == 1 && steps.Count == 0);
 
                 var r1 = repo();
-                var f1 = Writer.Done(c, r1.Name);
+                var f1 = Writer.Fetch(c, r1.Name);
                 s.Force("PATCH", via(r1), 404, "{\"message\":\"Not Found\"}", null);
                 string e1 = Error(() => Writer.PublishWithRetry(c, f1, r1.Name, 5, true, step));
                 v("404 then fine: it succeeds by itself", e1 == null && !r1.Release[0].Draft && patch(r1) == 2);
@@ -54,7 +54,7 @@ public static class RetryTests {
 
                 steps.Clear();
                 var r2 = repo();
-                var f2 = Writer.Done(c, r2.Name);
+                var f2 = Writer.Fetch(c, r2.Name);
                 s.ForceTimes("PATCH", via(r2), 404, "{\"message\":\"Not Found\"}", null, 99);
                 string e2 = Error(() => Writer.PublishWithRetry(c, f2, r2.Name, 5, true, step));
                 v("404 forever: three attempts", patch(r2) == 3);
@@ -65,20 +65,20 @@ public static class RetryTests {
                 r2.Release[0].Draft = true;
 
                 var r3 = repo();
-                var f3 = Writer.Done(c, r3.Name);
+                var f3 = Writer.Fetch(c, r3.Name);
                 s.Force("PATCH", via(r3), 404, "{\"message\":\"Not Found\"}", null);
                 string e3 = Error(() => Writer.PublishWithRetry(c, f3, r3.Name, 5, true, t => r3.Release[0].Draft = false));
                 v("already published in the meantime: it is a success", e3 == null);
                 v("already published in the meantime: it does not republish", patch(r3) == 1);
 
                 var r4 = repo();
-                var f4 = Writer.Done(c, r4.Name);
+                var f4 = Writer.Fetch(c, r4.Name);
                 s.ForceTimes("PATCH", via(r4), 404, "{\"message\":\"Not Found\"}", null, 99);
                 string e4 = Error(() => Writer.PublishWithRetry(c, f4, r4.Name, 5, true, t => r4.Release.Clear()));
                 v("really gone: it says so", e4 == Language.T("writes.release_no_longer_github_nothing"));
 
                 var r5 = repo();
-                var f5 = Writer.Done(c, r5.Name);
+                var f5 = Writer.Fetch(c, r5.Name);
                 s.ForceTimes("PATCH", via(r5), 404, "{\"message\":\"Not Found\"}", null, 99);
                 s.ForceTimes("GET", via(r5), 404, "{\"message\":\"Not Found\"}", null, 99);
                 s.ForceTimes("GET", "/repos/" + r5.Name + "/releases", 404, "{\"message\":\"Not Found\"}", null, 99);
@@ -88,14 +88,14 @@ public static class RetryTests {
                 foreach (var code in new[] { 403, 422, 500 }) {
                     steps.Clear();
                     var r6 = repo();
-                    var f6 = Writer.Done(c, r6.Name);
+                    var f6 = Writer.Fetch(c, r6.Name);
                     s.ForceTimes("PATCH", via(r6), code, "{\"message\":\"no\"}", null, 99);
                     string e6 = Error(() => Writer.PublishWithRetry(c, f6, r6.Name, 5, true, step));
                     v(code + ": no retry, and nothing else is told", e6 != null && patch(r6) == 1 && steps.Count == 0);
                 }
 
                 var r7 = repo();
-                var f7 = Writer.Done(c, r7.Name);
+                var f7 = Writer.Fetch(c, r7.Name);
                 string e7 = Error(() => Writer.PublishWithRetry(c, f7, "wrong", 5, true, step));
                 v("wrong name: does not publish", e7 != null && patch(r7) == 0 && r7.Release[0].Draft);
 
@@ -103,14 +103,14 @@ public static class RetryTests {
                 Writer.PublishAttempts = 6;
                 steps.Clear();
                 var r9 = repo();
-                var f9 = Writer.Done(c, r9.Name);
+                var f9 = Writer.Fetch(c, r9.Name);
                 r9.Release.Clear();
                 string e9 = Error(() => Writer.PublishWithRetry(c, f9, r9.Name, 5, true, step));
                 v("deleted by others: it says so", e9 == Language.T("writes.release_no_longer_github_nothing"));
                 v("deleted by others: only one wait, not all", steps.Count == 1 && patch(r9) == 0);
                 v("deleted by others: while waiting it talks about the release, not the repo", steps.Count == 1 && steps[0] == Language.T("writes.github_cant_find_release_may", "sec", 1));
                 var r10 = repo();
-                var f10 = Writer.Done(c, r10.Name);
+                var f10 = Writer.Fetch(c, r10.Name);
                 var via10 = r10.Release[0];
                 r10.Release.Clear();
                 string e10 = Error(() => Writer.PublishWithRetry(c, f10, r10.Name, 5, true, t => { if (r10.Release.Count == 0) r10.Release.Add(via10); }));
@@ -118,29 +118,29 @@ public static class RetryTests {
                 Writer.PublishAttempts = 3;
 
                 var r11 = repo();
-                var f11 = Writer.Done(c, r11.Name);
+                var f11 = Writer.Fetch(c, r11.Name);
                 s.Force("PATCH", via(r11), 404, NF, null);
                 string e11 = Error(() => Writer.PublishWithRetry(c, f11, r11.Name, 5, true, t => { s.ForceTimes("GET", via(r11), 404, NF, null, 99); s.ForceTimes("GET", "/repos/" + r11.Name + "/releases", 404, NF, null, 99); }));
                 v("after one attempt, unable to read again: it says it does not know", e11 == Language.T("writes.github_wont_let_read_release") && patch(r11) == 1);
 
                 Action<string> stop = t => { throw new CheckStoppedException(Language.T("management.check_stopped_nothing_been_done")); };
                 var r12 = repo();
-                var f12 = Writer.Done(c, r12.Name);
+                var f12 = Writer.Fetch(c, r12.Name);
                 s.ForceTimes("PATCH", via(r12), 404, NF, null, 99);
                 string e12 = Error(() => Writer.PublishWithRetry(c, f12, r12.Name, 5, true, stop));
                 v("stopped after one attempt, still a draft: it says so, without 'nothing has been done'", e12 == Language.T("writes.stopped_read_again_release_still") && !e12.Contains("nothing has been done") && patch(r12) == 1);
                 var r13 = repo();
-                var f13 = Writer.Done(c, r13.Name);
+                var f13 = Writer.Fetch(c, r13.Name);
                 s.ForceTimes("PATCH", via(r13), 404, NF, null, 99);
                 string e13 = Error(() => Writer.PublishWithRetry(c, f13, r13.Name, 5, true, t => { r13.Release[0].Draft = false; stop(t); }));
                 v("stopped, but the 404 had taken effect: it is published, and does not say the opposite", e13 == null);
                 var r14 = repo();
-                var f14 = Writer.Done(c, r14.Name);
+                var f14 = Writer.Fetch(c, r14.Name);
                 s.ForceTimes("PATCH", via(r14), 404, NF, null, 99);
                 string e14 = Error(() => Writer.PublishWithRetry(c, f14, r14.Name, 5, true, t => { s.ForceTimes("GET", via(r14), 404, NF, null, 99); stop(t); }));
                 v("stopped, unable to read again: it says it does not know", e14 == Language.T("writes.github_wont_let_read_release"));
                 var r15 = repo();
-                var f15 = Writer.Done(c, r15.Name);
+                var f15 = Writer.Fetch(c, r15.Name);
                 string e15 = Error(() => Writer.PublishWithRetry(c, f15, r15.Name, 5, true, step, () => stop(null)));
                 v("stopped before any attempt: the PATCH does not start, and 'nothing has been done' is true", e15 == Language.T("management.check_stopped_nothing_been_done") && patch(r15) == 0 && r15.Release[0].Draft);
 

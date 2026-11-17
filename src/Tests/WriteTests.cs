@@ -164,13 +164,13 @@ public static class WriteTests {
             }
             var leak = s.New("mario/moved", "User", "admin", true);
             s.Force("GET", "/repos/mario/moved", 302, "", new Dictionary<string, string> { { "Location", "http://127.0.0.1:" + elsewhere.Gateway + "/stolen" } });
-            string eLeak = Error(() => Writer.Done(c, "mario/moved"));
+            string eLeak = Error(() => Writer.Fetch(c, "mario/moved"));
             v("a redirect is not followed: the key does not go elsewhere", eLeak != null && eLeak.Contains("moved") && elsewhere.RequestLog.Count == 0);
             v("the key goes in the right header", s.RequestLog.Last().Auth == "Bearer " + FakeKey);
-            v("a strange repo name is not sent", reject(() => Writer.Done(c, "../../user"), "is not valid") && reject(() => Writer.Done(c, "a/b/c"), "is not valid"));
+            v("a strange repo name is not sent", reject(() => Writer.Fetch(c, "../../user"), "is not valid") && reject(() => Writer.Fetch(c, "a/b/c"), "is not valid"));
 
             var ve = s.New("mario/judge", "User", "admin", true);
-            var fv = Writer.Done(c, "mario/judge");
+            var fv = Writer.Fetch(c, "mario/judge");
             Func<int, string, Dictionary<string, string>, string> response = (code, text, inte) => { s.Force("PATCH", "/repos/mario/judge", code, text, inte); return Error(() => Writer.ChangeDescription(c, fv, "x")); };
             v("organization app block", response(403, "{\"message\":\"Although you appear to have the correct authorization credentials, the org has enabled OAuth App access restrictions\"}", null) == Phrases.OrgBlock);
             v("the block says what to do", Phrases.OrgBlock.Contains("approve") && Phrases.OrgBlock.Contains("Third-party access"));
@@ -188,7 +188,7 @@ public static class WriteTests {
             v("a redirect on a write: says it wrote nothing", ePostpone.Contains("I wrote nothing") && ePostpone.Contains("Update from GitHub"));
             string eBody = response(422, "{\"message\":\"your key " + FakeKey + " was wrong\"}", null);
             v("the response text is not shown", !eBody.Contains(FakeKey) && !eBody.Contains("wrong"));
-            v("an unreadable response does not crash it", Error(() => { s.Force("GET", "/repos/mario/judge", 200, "<html>", null); Writer.Done(c, "mario/judge"); }).Contains("don't understand"));
+            v("an unreadable response does not crash it", Error(() => { s.Force("GET", "/repos/mario/judge", 200, "<html>", null); Writer.Fetch(c, "mario/judge"); }).Contains("don't understand"));
 
             var place = Writer.Owners(c, "mario");
             v("created in your own account and in organizations", place.Count == 3 && place[0].Name == "mario" && !place[0].Organization && place.Any(x => x.Name == "company" && x.Organization));
@@ -229,12 +229,12 @@ public static class WriteTests {
 
             var ri = s.New("mario/website", "User", "admin", true);
             s.Put(ri, "README.md", U("# Website"));
-            var f = Writer.Done(c, "mario/website");
+            var f = Writer.Fetch(c, "mario/website");
             Writer.ChangeDescription(c, f, "My website");
             v("description changed with one click", ri.Description == "My website");
             v("description with a secret: not sent", reject(() => Writer.ChangeDescription(c, f, sGit), "Stopping"));
             Writer.ChangeWebsite(c, f, "https://www.example.com/page?a=1");
-            v("the website is read and changed", ri.Website == "https://www.example.com/page?a=1" && Writer.Done(c, "mario/website").Website == ri.Website && s.Last.D.Count == 1);
+            v("the website is read and changed", ri.Website == "https://www.example.com/page?a=1" && Writer.Fetch(c, "mario/website").Website == ri.Website && s.Last.D.Count == 1);
             foreach (var x in new[] { "http://www.esempio.it", "javascript:alert(1)", "www.esempio.it", "ftp://example.com", "https://", "https://localhost", "https://a b.it", "https://mario:x@esempio.it", "https://esempio.it/a\"b", "https://esempio.it/<b>", "HTTPS://esempio.it", "https://esempio.it/" + new string('a', 260) }) {
                 string y = x;
                 v("invalid website: not sent (" + (y.Length > 40 ? y.Substring(0, 40) : y) + ")", reject(() => Writer.ChangeWebsite(c, f, y), "https://") && !Writer.ValidWebsite(y));
@@ -244,11 +244,11 @@ public static class WriteTests {
             v("the website can be removed", ri.Website == "");
             Writer.ArchiveRepo(c, f, true);
             v("archive", ri.Archived);
-            var does = Writer.Done(c, "mario/website");
+            var does = Writer.Fetch(c, "mario/website");
             v("an archived repo cannot be written", reject(() => Writer.WriteFile(c, does, "a.txt", "x", null, null), "archived") && reject(() => Writer.ChangeDescription(c, does, "x"), "archived"));
             Writer.ArchiveRepo(c, does, false);
             v("unarchive", !ri.Archived);
-            f = Writer.Done(c, "mario/website");
+            f = Writer.Fetch(c, "mario/website");
             var fr = f;
             v("rename without a typed name: not sent", reject(() => Writer.Rename(c, fr, null, "website2"), "is not the repo's name"));
             v("rename with the wrong name: not sent", reject(() => Writer.Rename(c, fr, "mario/other", "website2"), "is not the repo's name"));
@@ -257,12 +257,12 @@ public static class WriteTests {
             v("rename with an invalid new name: not sent", reject(() => Writer.Rename(c, fr, "mario/website", "a b"), null));
             v("rename with the right name", Writer.Rename(c, f, "mario/website", "website2") == "mario/website2" && s.Repo.ContainsKey("mario/website2"));
             v("the repo changed in the meantime: not sent", reject(() => Writer.ChangeDescription(c, fr, "x"), "It isn't") || reject(() => Writer.ChangeDescription(c, fr, "x"), "isn't on GitHub"));
-            var fvecchi = Writer.Done(c, "mario/website2");
+            var fvecchi = Writer.Fetch(c, "mario/website2");
             s.Repo.Remove("mario/website2");
             var impostor = s.New("mario/website2", "User", "admin", true);
             v("same name but another repo: not sent", reject(() => Writer.Rename(c, fvecchi, "mario/website2", "website3"), "changed"));
             s.Repo.Remove("mario/website2"); s.Repo["mario/website2"] = ri;
-            f = Writer.Done(c, "mario/website2");
+            f = Writer.Fetch(c, "mario/website2");
 
             var k = Writer.CheckForPublish(c, f, null);
             v("the check looks at the files", k.Clean && k.Scanned == 1 && k.RepoId == f.Id);
@@ -274,13 +274,13 @@ public static class WriteTests {
             k = Writer.CheckForPublish(c, f, null);
             Writer.MakePublic(c, f, "mario/website2", k);
             v("public with a clean check and the name", !ri.Private);
-            Writer.MakePrivate(c, Writer.Done(c, "mario/website2"));
+            Writer.MakePrivate(c, Writer.Fetch(c, "mario/website2"));
             v("back to private", ri.Private);
             s.Put(ri, "config.txt", U("line\n" + sPassword));
             s.Put(ri, ".env", U("nothing"));
             s.Put(ri, "data.bin", new byte[] { 0, 1, 2 }.Concat(U(sGit)).ToArray());
             s.Put(ri, "note.txt", U(sPath));
-            f = Writer.Done(c, "mario/website2");
+            f = Writer.Fetch(c, "mario/website2");
             k = Writer.CheckForPublish(c, f, null);
             string eK = string.Join(" | ", k.Findings.Select(x => x.ToString()));
             v("finds the password, the name, the key in the binary, the path", !k.Clean && eK.Contains("config.txt") && eK.Contains(".env") && eK.Contains("data.bin") && eK.Contains("note.txt"));
@@ -297,7 +297,7 @@ public static class WriteTests {
 
             var pr = s.New("mario/branches", "User", "admin", true);
             s.Put(pr, "README.md", U("# Branches"));
-            var fpr = Writer.Done(c, "mario/branches");
+            var fpr = Writer.Fetch(c, "mario/branches");
             var kr = Writer.CheckForPublish(c, fpr, null);
             v("a repo with a single branch: clean", kr.Clean && kr.Branches == 1 && kr.Scanned == 1);
             s.PutBranch(pr, "trial", "README.md", U("# Branches"));
@@ -377,7 +377,7 @@ public static class WriteTests {
             v("email in a file: a notice with the file name, does not stop", kr.Notices.Count == 1 && story.Contains("contacts.txt") && !story.Contains("rossi") && kr.Clean);
             pr.File.Remove("contacts.txt");
             pr.Wiki = false; pr.Issue = 1; pr.EmailCommit.Clear();
-            fpr = Writer.Done(c, "mario/branches");
+            fpr = Writer.Fetch(c, "mario/branches");
             kr = Writer.CheckForPublish(c, fpr, null);
             story = ManagementPage.PublishStory(kr);
             v("without wiki it does not mention it, a single report", !story.Contains("wiki") && story.Contains("1 report,"));
@@ -390,22 +390,22 @@ public static class WriteTests {
             v("reports turned off on the repo: zero", Writer.CheckForPublish(c, fpr, null).Issue == 0);
             string dirtyWebsite = "https://esempio.it/" + sGit;
             pr.Website = dirtyWebsite;
-            kr = Writer.CheckForPublish(c, Writer.Done(c, "mario/branches"), null);
+            kr = Writer.CheckForPublish(c, Writer.Fetch(c, "mario/branches"), null);
             v("a secret in the site stops making it public", kr.Findings.Any(x => x.File == "website"));
             pr.Website = "";
-            var view = Writer.Done(c, "mario/branches");
+            var view = Writer.Fetch(c, "mario/branches");
             pr.Private = false;
             v("it became public while you were looking: nothing is written", reject(() => Writer.ChangeDescription(c, view, "x"), "became public") && reject(() => Writer.WriteFile(c, view, "z.txt", "x", null, null), "became public"));
-            view = Writer.Done(c, "mario/branches");
+            view = Writer.Fetch(c, "mario/branches");
             pr.Private = true;
             v("it became private while you were looking: nothing is written", reject(() => Writer.ChangeDescription(c, view, "x"), "became private"));
             var emptyP = s.New("mario/empty-public", "User", "admin", true);
-            var kvp = Writer.CheckForPublish(c, Writer.Done(c, "mario/empty-public"), null);
+            var kvp = Writer.CheckForPublish(c, Writer.Fetch(c, "mario/empty-public"), null);
             v("an empty repo: clean, zero files", kvp.Clean && kvp.Scanned == 0 && kvp.Branches == 0);
 
             var stR = s.New("mario/history", "User", "admin", true);
             s.Put(stR, "README.md", U("# History"));
-            var stF = Writer.Done(c, "mario/history");
+            var stF = Writer.Fetch(c, "mario/history");
             var stK = Writer.CheckForPublish(c, stF, null);
             v("history: a single commit, clean", stK.Clean && stK.Commit == 1 && stK.HistoryScanned == 0);
             Func<string, string, Dictionary<string, string>> stFile = (nameF, textF) => new Dictionary<string, string> { { nameF, s.Blob(U(textF)) } };
@@ -512,7 +512,7 @@ public static class WriteTests {
 
             var teR = s.New("mario/texts", "User", "admin", true);
             s.Put(teR, "README.md", U("# Texts"));
-            var teF = Writer.Done(c, "mario/texts");
+            var teF = Writer.Fetch(c, "mario/texts");
             Func<string, string, PublishCheck> makeCheck = (testRoot, only) => {
                 teR.Lists.Clear(); teR.Release.Clear();
                 if (testRoot == "issue") teR.Lists["/issues"] = new List<object> { FakeServer.D("number", 5, "title", only, "body", "ok") };
@@ -559,7 +559,7 @@ public static class WriteTests {
             teR.Lists.Clear(); teR.Release.Clear();
 
             var tr = s.New("mario/transfer", "User", "admin", true);
-            var ft = Writer.Done(c, "mario/transfer");
+            var ft = Writer.Fetch(c, "mario/transfer");
             v("transfer without a name: does not start", reject(() => Writer.Transfer(c, ft, "x", "luisa"), "is not the repo's name"));
             v("transfer to a strange name: does not start", reject(() => Writer.Transfer(c, ft, "mario/transfer", "../x"), "is not valid"));
             int oldWait = Writer.TransferWaitMs;
@@ -569,22 +569,22 @@ public static class WriteTests {
             v("transfer to an organization: new name, even if the POST still says the old one", Writer.Transfer(c, ft, "mario/transfer", "company") == "company/transfer" && s.Of("GET", "/repos/company/transfer").Count == 1);
             s.TransferDelay = 2;
             var slow = s.New("mario/slow", "User", "admin", true);
-            v("transfer to a slow organization: waits and then finds the new name", Writer.Transfer(c, Writer.Done(c, "mario/slow"), "mario/slow", "company") == "company/slow" && s.Of("GET", "/repos/company/slow").Count == 3);
+            v("transfer to a slow organization: waits and then finds the new name", Writer.Transfer(c, Writer.Fetch(c, "mario/slow"), "mario/slow", "company") == "company/slow" && s.Of("GET", "/repos/company/slow").Count == 3);
             var verySlow = s.New("mario/very-slow", "User", "admin", true);
             s.TransferDelay = 50;
-            v("transfer to an organization that is too slow: says it is waiting, and does not fail", Writer.Transfer(c, Writer.Done(c, "mario/very-slow"), "mario/very-slow", "company") == null && s.Of("GET", "/repos/company/very-slow").Count == 4);
+            v("transfer to an organization that is too slow: says it is waiting, and does not fail", Writer.Transfer(c, Writer.Fetch(c, "mario/very-slow"), "mario/very-slow", "company") == null && s.Of("GET", "/repos/company/very-slow").Count == 4);
             s.TransferDelay = 0;
             var broken = s.New("mario/broken", "User", "admin", true);
             s.Force("GET", "/repos/company/broken", 500, "{}", null);
-            v("transfer: if the re-read goes wrong, the transfer does not fail and says it is waiting", Writer.Transfer(c, Writer.Done(c, "mario/broken"), "mario/broken", "company") == null && s.Of("GET", "/repos/company/broken").Count == 1);
+            v("transfer: if the re-read goes wrong, the transfer does not fail and says it is waiting", Writer.Transfer(c, Writer.Fetch(c, "mario/broken"), "mario/broken", "company") == null && s.Of("GET", "/repos/company/broken").Count == 1);
             var twin = s.New("mario/twin", "User", "admin", true);
             s.Force("GET", "/repos/luisa/twin", 200, "{\"id\":99999,\"full_name\":\"luisa/twin\"}", null);
-            v("transfer: if there is another repo under the new name, it is not ours and keeps waiting", Writer.Transfer(c, Writer.Done(c, "mario/twin"), "mario/twin", "luisa") == null);
+            v("transfer: if there is another repo under the new name, it is not ours and keeps waiting", Writer.Transfer(c, Writer.Fetch(c, "mario/twin"), "mario/twin", "luisa") == null);
             v("transfer: the real wait between re-reads is short, a few seconds at most in total", oldWait >= 100 && oldWait * 6 <= 6000);
 
             var fi = s.New("mario/file", "User", "admin", true);
             s.Put(fi, "a.txt", U("single"));
-            var ff = Writer.Done(c, "mario/file");
+            var ff = Writer.Fetch(c, "mario/file");
             var read = Writer.ReadFile(c, ff, "a.txt");
             v("reads a file", read.Text == "single" && read.Sha.Length > 0);
             Writer.WriteFile(c, ff, "a.txt", "two is", read.Sha, null);
@@ -638,7 +638,7 @@ public static class WriteTests {
             s.Put(ca, "old.txt", U("stays"));
             s.Put(ca, "README.md", U("old"));
             int commitBefore = ca.Commit;
-            var fc = Writer.Done(c, "mario/upload");
+            var fc = Writer.Fetch(c, "mario/upload");
             string d1 = Folder(temp, "README.md", "new", "src/a.cs", "class A {}", "src/b.cs", "class B {}", ".gitignore", "bin/\n*.log\nsecrets/\n", "bin/x.exe", "program", "c.log", "log", "secrets/.env", "hidden", ".git/config", "internal");
             var kd = Writer.Prepare(d1, null);
             v("skips .git and what .gitignore says", !kd.Blocked && kd.File.Count == 4 && kd.Skipped.Contains(".git/") && kd.Skipped.Contains("bin/") && kd.Skipped.Contains("c.log") && kd.Skipped.Contains("secrets/"));
@@ -659,19 +659,19 @@ public static class WriteTests {
             string eFf = Error(() => Writer.LoadFolder(c, fc2, kd2, "", null, null));
             v("if the branch moved it is not forced: error", eFf != null);
             var vu = s.New("mario/empty", "User", "admin", true);
-            var fvu = Writer.Done(c, "mario/empty");
+            var fvu = Writer.Fetch(c, "mario/empty");
             string d2 = Folder(temp, "README.md", "hello", "a.txt", "single", "b.txt", "double");
             var ev = Writer.LoadFolder(c, fvu, Writer.Prepare(d2, null), "", null, null);
             v("empty repo: first file separately, then the rest", ev.WasEmpty && ev.Steps == 2 && vu.File.Count == 3 && vu.Commit == 2);
             var firstPut = s.Of("PUT", "/repos/mario/empty/contents/README.md").Last();
             v("empty repo: the first file is signed and does not name the branch", signed(firstPut) && !firstPut.D.ContainsKey("branch") && signed(s.Of("POST", "/repos/mario/empty/git/commits").Last()));
             var vu1 = s.New("mario/empty1", "User", "admin", true);
-            var ev1 = Writer.LoadFolder(c, Writer.Done(c, "mario/empty1"), Writer.Prepare(Folder(temp, "x.txt", "single"), null), "", null, null);
+            var ev1 = Writer.LoadFolder(c, Writer.Fetch(c, "mario/empty1"), Writer.Prepare(Folder(temp, "x.txt", "single"), null), "", null, null);
             v("empty repo with a single file: one commit", ev1.Steps == 1 && vu1.Commit == 1);
             int slept = 0;
             var many = new string[120]; for (int i = 0; i < 60; i++) { many[i * 2] = "f" + i + ".txt"; many[i * 2 + 1] = "x"; }
             var mo = s.New("mario/many", "User", "admin", true); s.Put(mo, "a", U("a"));
-            Writer.LoadFolder(c, Writer.Done(c, "mario/many"), Writer.Prepare(Folder(temp, many), null), "", null, n => slept++);
+            Writer.LoadFolder(c, Writer.Fetch(c, "mario/many"), Writer.Prepare(Folder(temp, many), null), "", null, n => slept++);
             v("with many files it goes slowly, because of GitHub's limits", slept == 60);
 
             Func<string[], Folder> prepare = pt => Writer.Prepare(Folder(temp, pt), null);
@@ -698,7 +698,7 @@ public static class WriteTests {
 
             var a5r = s.New("mario/archives", "User", "admin", true);
             s.Put(a5r, "c.txt", U("c"));
-            var a5f = Writer.Done(c, "mario/archives");
+            var a5f = Writer.Fetch(c, "mario/archives");
             var a5k = Writer.Prepare(Folder(temp, "a.txt", "ok", "data.zip", "x", "copy.SQLITE", "x", "old.tar.gz", "x", "sheet.pdf", "x", "photo.png", "x"), null);
             v("archives and databases: to confirm, not blocked", !a5k.Blocked && a5k.ToConfirm.Count == 3 && a5k.ToConfirm.Contains("data.zip") && a5k.ToConfirm.Contains("copy.SQLITE") && a5k.ToConfirm.Contains("old.tar.gz"));
             v("documents and images: are mentioned, do not stop", a5k.NotReadable.Contains("sheet.pdf") && a5k.NotReadable.Contains("photo.png") && !a5k.Blocked);
@@ -714,14 +714,14 @@ public static class WriteTests {
             v("email in a file: a notice with the name, without the value, does not stop", !a5a.Blocked && a5a.Notices.Count == 1 && a5a.Notices[0].ToString().Contains("contacts.txt") && !a5a.Notices[0].ToString().Contains("rossi"));
             var a5p = s.New("mario/open", "User", "admin", false);
             s.Put(a5p, "a", U("a"));
-            var a5fp = Writer.Done(c, "mario/open");
+            var a5fp = Writer.Fetch(c, "mario/open");
             var a5kp = Writer.Prepare(Folder(temp, "b.txt", "ok"), null);
             v("public repo: without the written name it does not upload", reject(() => Writer.LoadFolder(c, a5fp, a5kp, "", null, null), "public") && reject(() => Writer.LoadFolder(c, a5fp, a5kp, "", null, null, "mario/other"), "public"));
             Writer.LoadFolder(c, a5fp, a5kp, "", null, null, "mario/open");
             v("public repo: with the written name it uploads", a5p.File.ContainsKey("b.txt"));
             var a5v = s.New("mario/changes", "User", "admin", true);
             s.Put(a5v, "a", U("a"));
-            var a5fv = Writer.Done(c, "mario/changes");
+            var a5fv = Writer.Fetch(c, "mario/changes");
             a5v.Private = false;
             v("private when you looked at it, public now: does not upload", reject(() => Writer.LoadFolder(c, a5fv, a5kp, "", null, null), "became public"));
 
@@ -742,7 +742,7 @@ public static class WriteTests {
             v("a file named .git stays out", m2g.Skipped.Contains(".git") && m2g.File.Count == 1);
 
             var b3r = s.New("mario/b3", "User", "admin", true);
-            var b3f = Writer.Done(c, "mario/b3");
+            var b3f = Writer.Fetch(c, "mario/b3");
             var b3k = Writer.Prepare(Folder(temp, "README.md", "a", "b.txt", "b"), null);
             s.Force("POST", "/repos/mario/b3/git/blobs", 500, "{}", null);
             string b3e = Error(() => Writer.LoadFolder(c, b3f, b3k, "", null, null));
@@ -751,7 +751,7 @@ public static class WriteTests {
             string b3d = Folder(temp, "README.md", "a", "b.txt", "b");
             var b3ks = Writer.Prepare(b3d, null);
             File.WriteAllText(Path.Combine(b3d, "b.txt"), sGit);
-            var b3fs = Writer.Done(c, "mario/b3s");
+            var b3fs = Writer.Fetch(c, "mario/b3s");
             v("a file dirtied after the check: stops before the first file", reject(() => Writer.LoadFolder(c, b3fs, b3ks, "", null, null), "Stopping") && b3s.File.Count == 0);
 
             var paA = new Archive();
@@ -761,29 +761,37 @@ public static class WriteTests {
             var goodPa = paEl("issue:8", "issue", 8, "Odd bug\u200Bhidden", "The program closes. Key: " + sGit);
             paA.Items.Add(goodPa);
             paA.Items.Add(paEl("comment:91", "comment", 8, "", "as above"));
-            paA.Decisions.Add(new Decision { Key = "issue:8", State = "approved", Fingerprint = DataStore.Fingerprint(goodPa), Summary = "test summary", SummaryFingerprint = DataStore.Fingerprint(goodPa), SummaryModel = "m1" });
+            paA.Decisions.Add(new Decision { Key = "issue:8", State = "approved", Fingerprint = DataStore.Fingerprint(goodPa) });
             var paE = new List<RecurringError> { new RecurringError { Repo = "mario/pa", Signature = "Error\u200B in " + sGit + " `x` | y", Times = 1 } };
             var paV = ItemSorter.Entries(paA);
-            string paT = Package.Text(paA, "mario/pa", paV, paE).Replace("\r\n", "\n");
-            string outsidePa = Regex.Replace(paT, "(?ms)^(`{3,})text$.*?^\\1$", "");
-            v("package: the test starts from an issue in quarantine and a clean comment", paV.First(z => z.E.Key == "issue:7").State == "quarantine" && paV.First(z => z.E.Key == "comment:71").State == "work");
-            v("package: the title in quarantine does not come out, not even through a comment", !paT.Contains("ignore all previous") && !paT.Contains("thank you very much"));
-            v("package: says how many comments it left out", paT.Contains("1 commento lasciato fuori"));
-            v("package: heading only with number and type", paT.Contains("### #8 issue\n") && paT.Contains("### #8 commento\n"));
-            v("package: title and summary only inside the fence", paT.Contains("Titolo: Odd bug{U+200B}hidden") && paT.Contains("Riassunto (m1): test summary") && !outsidePa.Contains("Odd bug") && !outsidePa.Contains("test summary"));
-            v("package: the title of a comment's parent is inside the fence", paT.Contains("Titolo: comment on: Odd bug{U+200B}hidden"));
-            v("package: no invisible character", !paT.Contains("\u200b"));
-            v("package: the signature is made visible", paT.Contains("Error{U+200B}") && !outsidePa.Contains("\u200b"));
-            v("package: keys covered in the body and in the signature, and it says so", !paT.Contains(sGit) && paT.Contains("[coperto da Project Manager]") && paT.Contains("Ho coperto 2 valori"));
-            v("package: warns that the check does not cover everything", paT.Contains("non copre tutto"));
-            string paClean = Package.Text(new Archive(), "mario/nothing", new List<Entry>(), new List<RecurringError>());
-            v("package: with nothing to cover it does not mention it", !paClean.Contains("Ho coperto") && !paClean.Contains("lasciat"));
-            v("package: only public repos go to the clipboard", Package.GoesToClipboard(new RepoInfo { Private = false }) && !Package.GoesToClipboard(new RepoInfo { Private = true }) && !Package.GoesToClipboard(null));
+            string paT = TextExport.Text(paA, "mario/pa", paV, paE).Replace("\r\n", "\n");
+            v("export: the test starts from an issue in quarantine and a clean comment", paV.First(z => z.E.Key == "issue:7").State == "quarantine" && paV.First(z => z.E.Key == "comment:71").State == "work");
+            v("export: the title in quarantine does not come out, not even through a comment", !paT.Contains("ignore all previous") && !paT.Contains("thank you very much"));
+            v("export: says how many comments it left out", paT.Contains("1 comment left out"));
+            v("export: each item has kind, title, author, date and link", paT.Contains("#8 (report)\nKind: bug\nTitle: Odd bug{U+200B}hidden\nAuthor: luisa\nDate: 01/11/2026\nLink: https://github.com/mario/pa/issues/8\n") && paT.Contains("#8 (comment)\nKind: bug\nTitle: comment on: Odd bug{U+200B}hidden\n"));
+            v("export: the text of the item follows", paT.Contains("The program closes."));
+            v("export: no invisible character, they are shown", !paT.Contains("\u200b") && paT.Contains("{U+200B}"));
+            v("export: the signature is made visible", paT.Contains("Error: Error{U+200B}"));
+            v("export: keys covered in the body and in the signature, and it says so", !paT.Contains(sGit) && paT.Contains("[coperto da Project Manager]") && paT.Contains("I covered 2 values"));
+            v("export: plain text, no Markdown headings, tables or fences", !paT.Contains("```") && !Regex.IsMatch(paT, "(?m)^#{2,} ") && !paT.Contains("|---"));
+            v("export: it does not talk to an assistant", !Regex.IsMatch(paT, "(?i)instructions to follow|data, not|claude|assistant|prompt"));
+            string paClean = TextExport.Text(new Archive(), "mario/nothing", new List<Entry>(), new List<RecurringError>());
+            v("export: with nothing to cover it does not mention it", !paClean.Contains("I covered") && !paClean.Contains("left out"));
+            v("export: the empty case says there is nothing", paClean.Contains("There is nothing to work on in this repo.") && paClean.Contains("mario/nothing"));
+            Language.Use("it");
+            string paIt = TextExport.Text(paA, "mario/pa", paV, paE).Replace("\r\n", "\n");
+            Language.Use("en");
+            v("export: headings and labels follow the language", paIt.Contains("#8 (segnalazione)\nTipo: bug\nTitolo: ") && paIt.Contains("Ho coperto 2 valori") && paIt.Contains("Errori ricorrenti nei log") && paIt.Contains("testi da lavorare"));
+            string paFile = Path.GetFileName(TextExport.FileName("mario/pa"));
+            v("export: the file is a .txt in its own folder, named after the repo", paFile.StartsWith("mario_pa_") && paFile.EndsWith(".txt") && Path.GetDirectoryName(TextExport.FileName("mario/pa")) == DataStore.Exports);
+            string paWritten = TextExport.Write("mario/pa", paT);
+            v("export: writing makes a UTF-8 file without a BOM", File.Exists(paWritten) && File.ReadAllText(paWritten, Encoding.UTF8) == paT && File.ReadAllBytes(paWritten)[0] != 0xEF);
+            File.Delete(paWritten);
 
             var re = s.New("mario/rel", "User", "admin", true);
             s.Put(re, "a", U("a"));
             s.UploadUrl = "http://127.0.0.1:" + elsewhere.Gateway + "/stolen{?name,label}";
-            var fl = Writer.Done(c, "mario/rel");
+            var fl = Writer.Fetch(c, "mario/rel");
             var b1 = Writer.CreateDraft(c, fl, "v1.0", "First", "Note");
             v("a release starts as a draft", b1.Draft && s.Last.D["draft"].Equals(true) && re.Release.Count == 1);
             v("invalid tag: it does not go through", reject(() => Writer.CreateDraft(c, fl, "v 1", "", ""), "tag") && reject(() => Writer.CreateDraft(c, fl, "", "", ""), "tag"));
@@ -828,7 +836,7 @@ public static class WriteTests {
 
             var co = s.New("mario/cop", "User", "admin", true);
             co.People["luisa"] = "write";
-            var fo = Writer.Done(c, "mario/cop");
+            var fo = Writer.Fetch(c, "mario/cop");
             v("add without the written name: it does not go through", reject(() => Writer.AddCollaborator(c, fo, "x", "paolo", "push"), "is not the repo's name"));
             v("add a strange name: it does not go through", reject(() => Writer.AddCollaborator(c, fo, "mario/cop", "../x", "push"), "is not valid"));
             v("add a person: an invitation goes out", Writer.AddCollaborator(c, fo, "mario/cop", "paolo", "admin") && co.Invitations.Values.Contains("paolo"));
@@ -843,7 +851,7 @@ public static class WriteTests {
             v("remove", !co.People.ContainsKey("luisa"));
             var cg = s.New("company/app", "Organization", "admin", true);
             cg.People["luisa"] = "pull";
-            var fg = Writer.Done(c, "company/app");
+            var fg = Writer.Fetch(c, "company/app");
             Writer.AddCollaborator(c, fg, "company/app", "paolo", "push");
             v("in an organization the role is sent", s.Last.D["permission"].Equals("push"));
             v("an invented role: it does not go through", reject(() => Writer.AddCollaborator(c, fg, "company/app", "paolo", "boss"), "role") && reject(() => Writer.ChangeRole(c, fg, "company/app", "luisa", "boss"), "role"));
@@ -854,7 +862,7 @@ public static class WriteTests {
             var so = s.New("luisa/readonly", "User", "read", false);
             var sc = s.New("luisa/writes", "User", "write", true);
             var ge = s.New("company/managed", "Organization", "maintain", true);
-            var fso = Writer.Done(c, "luisa/readonly"); var fsc = Writer.Done(c, "luisa/writes"); var fge = Writer.Done(c, "company/managed");
+            var fso = Writer.Fetch(c, "luisa/readonly"); var fsc = Writer.Fetch(c, "luisa/writes"); var fge = Writer.Fetch(c, "company/managed");
             foreach (RepoAction a in Enum.GetValues(typeof(RepoAction))) v("someone who can only read, " + a + ": disabled with the reason", Permissions.Because(a, fso) != null && Permissions.Because(a, fso).Contains("only read"));
             foreach (RepoAction a in Enum.GetValues(typeof(RepoAction))) v("someone who writes, " + a, (Permissions.Because(a, fsc) == null) == (a == RepoAction.Content || a == RepoAction.Release));
             foreach (RepoAction a in Enum.GetValues(typeof(RepoAction))) v("someone who manages, " + a, (Permissions.Because(a, fge) == null) == (a == RepoAction.Content || a == RepoAction.Release || a == RepoAction.Description));
@@ -865,10 +873,10 @@ public static class WriteTests {
                 { "draft", x => Writer.CreateDraft(c, x, "v9", "", "") }, { "attach", x => Writer.AttachAsset(c, x, 1, exe) }, { "edit release", x => Writer.EditRelease(c, x, 1, "v9", "", "", x.Name) }, { "publish release", x => Writer.Publish(c, x, x.Name, 1, true) }, { "delete release", x => Writer.DeleteRelease(c, x, x.Name, 1) },
                 { "add", x => Writer.AddCollaborator(c, x, x.Name, "paolo", "push") }, { "remove", x => Writer.RemoveCollaborator(c, x, x.Name, "paolo") } };
             foreach (var x in actions) { var az = x.Value; v("someone who can only read does not go through: " + x.Key, reject(() => az(fso), "only read")); }
-            v("the engine does not trust the permissions seen before", reject(() => { var fake = Writer.Done(c, "luisa/readonly"); fake.Admin = true; fake.Push = true; Writer.ChangeDescription(c, fake, "a"); }, "only read"));
+            v("the engine does not trust the permissions seen before", reject(() => { var fake = Writer.Fetch(c, "luisa/readonly"); fake.Admin = true; fake.Push = true; Writer.ChangeDescription(c, fake, "a"); }, "only read"));
 
             var vi = s.New("mario/via", "User", "admin", true);
-            var fd = Writer.Done(c, "mario/via");
+            var fd = Writer.Fetch(c, "mario/via");
             var u1 = Client.Fake(s.Gateway, Use, false);
             v("delete without the name: it does not go through", reject(() => Writer.DeleteRepo(c, u1, "mario", fd, "via"), "is not the repo's name") && s.Repo.ContainsKey("mario/via"));
             v("the disposable key is thrown away even if it goes wrong", u1.Discarded);
@@ -1208,7 +1216,7 @@ public static class WriteTests {
             queue.Enqueue(q => { var e = (FileEditorDialog)q; Until(() => e.Ready); v("editor: reads the text, path fixed", e.EditorText.Text == "new" && e.Path.ReadOnly); e.EditorText.Text = "rewritten"; e.SaveButton.PerformClick(); });
             ffi.EditButton.PerformClick();
             Until(() => !ffi.Working && ffi.Lines.Items.Count > 0);
-            v("files: edit from the window", Writer.ReadFile(c, Writer.Done(c, "mario/moved"), "clean.txt").Text == "rewritten");
+            v("files: edit from the window", Writer.ReadFile(c, Writer.Fetch(c, "mario/moved"), "clean.txt").Text == "rewritten");
             queue.Enqueue(q => {
                 var e = (FileEditorDialog)q;
                 Until(() => e.Ready);
@@ -1240,13 +1248,13 @@ public static class WriteTests {
             var ed1 = openEd("crlf.txt");
             v("editor: says private and who is acting", ed1.Header.Text.Contains("Private") && ed1.Header.Text.Contains("You are acting as"));
             ed1.EditorText.Text += "c\r\n"; ed1.SaveButton.PerformClick(); Until(() => ed1.Changed); ed1.Close();
-            v("editor: keeps the Windows line endings", Writer.ReadFile(c, Writer.Done(c, "mario/lines"), "crlf.txt").Text == "a\r\nb\r\nc\r\n");
+            v("editor: keeps the Windows line endings", Writer.ReadFile(c, Writer.Fetch(c, "mario/lines"), "crlf.txt").Text == "a\r\nb\r\nc\r\n");
             var ed2 = openEd("lf.txt");
             ed2.EditorText.Text += "c\r\n"; ed2.SaveButton.PerformClick(); Until(() => ed2.Changed); ed2.Close();
-            v("editor: keeps the plain line endings", Writer.ReadFile(c, Writer.Done(c, "mario/lines"), "lf.txt").Text == "a\nb\nc\n");
+            v("editor: keeps the plain line endings", Writer.ReadFile(c, Writer.Fetch(c, "mario/lines"), "lf.txt").Text == "a\nb\nc\n");
             var ed3 = openEd(null);
             ed3.Path.Text = "new.sh"; ed3.EditorText.Text = "x\r\ny"; ed3.SaveButton.PerformClick(); Until(() => ed3.Changed); ed3.Close();
-            v("editor: a new file gets plain line endings", Writer.ReadFile(c, Writer.Done(c, "mario/lines"), "new.sh").Text == "x\ny");
+            v("editor: a new file gets plain line endings", Writer.ReadFile(c, Writer.Fetch(c, "mario/lines"), "new.sh").Text == "x\ny");
             var ed4 = openEd("lf.txt");
             edr.Private = false;
             ed4.SaveButton.PerformClick(); Until(() => !ed4.Working);

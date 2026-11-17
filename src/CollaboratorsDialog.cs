@@ -61,7 +61,7 @@ public class CollaboratorsDialog : OperationDialog {
 
     void ReadFileAgain() {
         string name = repo;
-        Work(c => { var f = Writer.Done(c, name); Permissions.Allow(RepoAction.Collaborators, f); return new KeyValuePair<RepoFacts, List<RepoPerson>>(f, Writer.Collaborators(c, f)); }, x => {
+        Work(c => { var f = Writer.Fetch(c, name); Permissions.Allow(RepoAction.Collaborators, f); return new KeyValuePair<RepoFacts, List<RepoPerson>>(f, Writer.Collaborators(c, f)); }, x => {
             Done = x.Key;
             Lines.Items.Clear();
             foreach (var r in x.Value) Lines.Items.Add(new ListViewItem(new[] { V(r.Name), Word(r.Role), r.Invitation != 0 ? Language.T("management.invitation_accept") : Language.T("management.active") }) { Tag = r });

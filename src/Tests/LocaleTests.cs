@@ -17,7 +17,7 @@ public static class LocaleTests {
         "publish.commits.one", "publish.files.one", "publish.pull_requests.one", "publish.releases.one", "writes.edit", "writes.pull", "writes.pull_request", "writes.release", "writes.tag", "type.pull",
     };
 
-    static readonly string[] WithoutCheck = { "StatsTests.cs", "MissingReposTests.cs", "UpdateNoticeTests.cs", "RetryTests.cs", "MigrationTests.cs", "License.cs", "LicenseState.cs", "LicenseResult.cs", "Package.cs", "WriteTests.cs", "FakeServer.cs", "LicenseTests.cs", "LocaleTests.cs", "Language.cs", "Legacy.cs", "LogoMark.cs", "WorkItem.cs", "Decision.cs", "RepoInfo.cs", "Collaborator.cs", "RepoOverview.cs", "TrafficDay.cs", "TrafficEntry.cs", "DownloadedAsset.cs", "DownloadedRelease.cs", "RepoStats.cs", "HistoryDay.cs", "HistoryArchive.cs", "GitHubAccount.cs", "Archive.cs", "Entry.cs", "Screenshots.cs", "Ollama.cs" };
+    static readonly string[] WithoutCheck = { "StatsTests.cs", "MissingReposTests.cs", "UpdateNoticeTests.cs", "RetryTests.cs", "MigrationTests.cs", "License.cs", "LicenseState.cs", "LicenseResult.cs", "Package.cs", "WriteTests.cs", "FakeServer.cs", "LicenseTests.cs", "LocaleTests.cs", "Language.cs", "Legacy.cs", "LogoMark.cs", "WorkItem.cs", "Decision.cs", "RepoInfo.cs", "Collaborator.cs", "RepoOverview.cs", "TrafficDay.cs", "TrafficEntry.cs", "DownloadedAsset.cs", "DownloadedRelease.cs", "RepoStats.cs", "HistoryDay.cs", "HistoryArchive.cs", "GitHubAccount.cs", "Archive.cs", "Entry.cs", "Screenshots.cs" };
 
     static readonly string[] NotTextsAre = {
         "repo read:org", "repo delete_repo", "urn:", "admin:org", "credential fill", "protocol=https", "application/vnd", "@users.noreply", "noreply@",
@@ -492,7 +492,7 @@ public static class LocaleTests {
                 xc.Close(); xc.Dispose();
 
                 var client = Client.Fake(s.Gateway, WriteTests.KeyForTest, true);
-                var seen = Writer.Done(client, repoName);
+                var seen = Writer.Fetch(client, repoName);
                 string error = null;
                 try { Writer.Rename(client, seen, Language.T("common.rename"), "other-" + account); } catch (WriteException e) { error = e.Message; }
                 v(c + ": the wrong name also stops at the back, with the sentence of the language", error == Language.T("writes.name_typed_not_repos_name") && s.Repo.ContainsKey(repoName));

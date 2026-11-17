@@ -148,7 +148,7 @@ public static class MigrationTests {
             v("archive: only the old file exists, the app sees data", DataStore.HasArchive() && !File.Exists(newArchive));
             var a = DataStore.Load();
             v("archive: old file, counts", a.Accounts.Count == 3 && a.Repo.Count == 2 && a.Items.Count == 3 && a.Decisions.Count == 5 && a.TrustedDomains.Count == 2);
-            v("archive: old file, top fields", a.Login == "mario" && a.LastUpdate == "2026-11-01T10:00:00Z" && a.Model == "model-a" && a.ReposFolder == reposPath && a.UpdateNoticeOff && a.SkippedVersion == "1.9");
+            v("archive: old file, top fields", a.Login == "mario" && a.LastUpdate == "2026-11-01T10:00:00Z" && a.ReposFolder == reposPath && a.UpdateNoticeOff && a.SkippedVersion == "1.9");
             v("archive: old filter value becomes the new one", a.Filter == AccountAccess.FilterPersonal && a.Filter == "personal");
             v("archive: old account origin value becomes the new one", a.Accounts[0].Origin == AccountAccess.OriginOld && a.Accounts[0].Origin == "legacy" && a.Accounts[1].Origin == AccountAccess.OriginGit && a.Accounts[2].Origin == AccountAccess.OriginBrowser);
             var item1 = a.Items[0]; var comment = a.Items[1]; var pull = a.Items[2];
@@ -156,7 +156,7 @@ public static class MigrationTests {
             v("archive: a comment keeps its meaning under the new type and key", comment.Type == "comment" && comment.Key == "comment:9" && comment.Text == "a comment" && comment.Author == "anna");
             v("archive: pull request type and key are unchanged", pull.Type == "pull" && pull.Key == "pull:2" && pull.State == "closed");
             v("archive: decision states", a.Decisions[0].State == "approved" && a.Decisions[1].State == "quarantine" && a.Decisions[2].State == "rejected" && a.Decisions[3].State == "done" && a.Decisions[4].State == "");
-            v("archive: decision fields and keys", a.Decisions[0].Key == "issue:1" && a.Decisions[0].Fingerprint == "aaaa" && a.Decisions[0].Summary == "sum" && a.Decisions[0].SummaryFingerprint == "aaaa" && a.Decisions[0].SummaryModel == "m1" && a.Decisions[0].When == "2026-10-05" && a.Decisions[1].Key == "comment:9");
+            v("archive: decision fields and keys", a.Decisions[0].Key == "issue:1" && a.Decisions[0].Fingerprint == "aaaa" && a.Decisions[0].When == "2026-10-05" && a.Decisions[1].Key == "comment:9");
             var repoA = a.Repo[0];
             v("archive: repo fields", repoA.Name == "mario/a" && repoA.Owner == "mario" && repoA.Followed && repoA.Private && repoA.Mine && repoA.Since == "2026-01-01" && repoA.Branch == "main" && repoA.Accounts.Count == 1 && a.Repo[1].Missing && !a.Repo[1].Followed);
             v("archive: overview and statistics are read", repoA.Overview != null && repoA.Overview.ReleaseRead && repoA.Overview.LatestTag == "v1.0" && repoA.Overview.Collaborators.Count == 1 && repoA.Overview.Collaborators[0].Name == "luisa" && repoA.Overview.Collaborators[0].Role == "write"
@@ -169,6 +169,7 @@ public static class MigrationTests {
             string written = File.ReadAllText(newArchive, Encoding.UTF8);
             v("archive: the new file uses English names and values", written.Contains("\"Items\"") && written.Contains("\"Decisions\"") && written.Contains("\"comment:9\"") && written.Contains("\"approved\"") && written.Contains("\"personal\"") && written.Contains("\"legacy\"")
                 && !written.Contains("Elementi") && !written.Contains("Decisioni") && !written.Contains("commento") && !written.Contains("approvato") && !written.Contains("quarantena") && !written.Contains("personali") && !written.Contains("vecchio"));
+            v("archive: summary and model fields of the old file are dropped on save", !written.Contains("Summary") && !written.Contains("Model") && !written.Contains("Riassunto") && !written.Contains("Modello") && !written.Contains("model-a"));
             var b = DataStore.Load();
             v("archive: the new file gives the same counts", b.Accounts.Count == a.Accounts.Count && b.Repo.Count == a.Repo.Count && b.Items.Count == a.Items.Count && b.Decisions.Count == a.Decisions.Count && b.TrustedDomains.Count == a.TrustedDomains.Count);
             v("archive: the new file gives the same values", b.Items[1].Type == "comment" && b.Items[1].Key == "comment:9" && b.Decisions[1].State == "quarantine" && b.Decisions[1].Key == "comment:9" && b.Filter == "personal" && b.Accounts[0].Origin == "legacy" && b.Repo[0].Stats.Views == 12);
@@ -194,6 +195,17 @@ public static class MigrationTests {
             File.WriteAllText(newArchive, "{\"Login\":\"mario\",\"Items\":[{\"Key\":\"comment:5\",\"Type\":\"comment\",\"Number\":3}],\"Decisions\":[{\"Key\":\"comment:5\",\"State\":\"approved\"}],\"Filter\":\"others\",\"Accounts\":[{\"Login\":\"mario\",\"Origin\":\"legacy\"}]}", utf8);
             var current = DataStore.Load();
             v("archive: a file already in the new form is read as it is", current.Items[0].Key == "comment:5" && current.Items[0].Type == "comment" && current.Decisions[0].State == "approved" && current.Filter == "others" && current.Accounts[0].Origin == "legacy");
+            Empty(data);
+            var kept = new WorkItem { Key = "issue:7", Repo = "mario/a", Number = 7, Type = "issue", Title = "Kept title", Text = "kept body" };
+            string keptPrint = DataStore.Fingerprint(kept);
+            File.WriteAllText(newArchive, "{\"Login\":\"mario\",\"Model\":\"m1\",\"Items\":[{\"Key\":\"issue:7\",\"Repo\":\"mario/a\",\"Number\":7,\"Type\":\"issue\",\"Title\":\"Kept title\",\"Text\":\"kept body\"}],"
+                + "\"Decisions\":[{\"Key\":\"issue:7\",\"Fingerprint\":\"" + keptPrint + "\",\"State\":\"done\",\"Summary\":\"s\",\"SummaryFingerprint\":\"" + keptPrint + "\",\"SummaryModel\":\"m1\"}]}", utf8);
+            var withSummary = DataStore.Load();
+            var keptEntries = ItemSorter.Entries(withSummary);
+            v("archive: a decision of 1.2 with summary fields still matches its item", keptEntries.Count == 1 && keptEntries[0].State == "done" && keptEntries[0].D != null && keptEntries[0].D.State == "done");
+            DataStore.Save(withSummary);
+            string rewritten = File.ReadAllText(newArchive, Encoding.UTF8);
+            v("archive: summary and model fields of 1.2 are dropped on save, the decision stays", !rewritten.Contains("Summary") && !rewritten.Contains("\"Model\"") && rewritten.Contains("\"done\"") && DataStore.Load().Decisions[0].Fingerprint == keptPrint);
             Empty(data);
             File.WriteAllText(oldArchive, Json("{'Filtro':'altri','Elementi':[],'Decisioni':[{'Chiave':'issue:1','Stato':'approved'}]}"), utf8);
             var mixed = DataStore.Load();
