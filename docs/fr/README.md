@@ -75,7 +75,7 @@ Les limites, sans détour :
 ## Fonctionnement
 
 1. **Connexion** : par le navigateur (le device flow de GitHub, sans Git) ou par Git Credential Manager si vous l'avez déjà. GitHub demande l'autorisation de lire et d'écrire dans vos repos : le programme n'écrit que lorsque vous appuyez sur l'un de ses boutons.
-2. **Contrôle de douane** (`src/Dogana.cs`) : chaque texte passe par des règles fixes, sans aucune IA. Elles cherchent les caractères invisibles et le texte caché, les commentaires HTML, `<details>`, les lignes Markdown cachées, les phrases destinées à une IA (« ignorez vos instructions », « vous êtes maintenant », marqueurs de prompt), les ordres d'exécuter quelque chose, les demandes d'envoi de données, les secrets, les commandes de terminal, les blocs de code exécutable, les mentions de bots, les liens hors des sites de confiance, les liens trompeurs, les liens vers des programmes et des archives, le texte encodé et les alphabets mélangés. Un seul motif suffit pour envoyer un texte en **Quarantaine**. Ces règles sont une aide et ne trouvent pas tout.
+2. **Contrôle de douane** (`src/Screener.cs`) : chaque texte passe par des règles fixes, sans aucune IA. Elles cherchent les caractères invisibles et le texte caché, les commentaires HTML, `<details>`, les lignes Markdown cachées, les phrases destinées à une IA (« ignorez vos instructions », « vous êtes maintenant », marqueurs de prompt), les ordres d'exécuter quelque chose, les demandes d'envoi de données, les secrets, les commandes de terminal, les blocs de code exécutable, les mentions de bots, les liens hors des sites de confiance, les liens trompeurs, les liens vers des programmes et des archives, le texte encodé et les alphabets mélangés. Un seul motif suffit pour envoyer un texte en **Quarantaine**. Ces règles sont une aide et ne trouvent pas tout.
 3. **Quarantaine** : vous lisez le texte avec les caractères invisibles écrits sous la forme `{U+200B}` et la liste des motifs. **Approuver** le déplace vers **À traiter**, **Refuser** le déplace vers **Archives**. Rien n'y est cliquable. Si le texte change sur GitHub après votre décision, il repasse par le contrôle.
 4. **À traiter** : les textes qui ont passé le contrôle ou que vous avez approuvés, répartis en logs, bugs, demandes, questions, avis, pull requests et autres.
 5. **Erreurs récurrentes** : les lignes de log regroupées par signature (chiffres et chemins retirés), avec le nombre de rapports, le nombre de fois et les versions concernées.
@@ -139,13 +139,13 @@ Dans `%LOCALAPPDATA%\ProjectManager` (ou le dossier de la variable `PM_DATA_DIR`
 Vous pouvez le compiler à partir de ce code source pour un usage personnel.
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File compila.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-`compila.ps1` utilise le csc de .NET Framework 4 déjà présent dans Windows (C# 5), sans bibliothèque tierce.
+`scripts\build.ps1` utilise le csc de .NET Framework 4 déjà présent dans Windows (C# 5), sans bibliothèque tierce.
 
-`prova.ps1` fait passer les textes de `prove\dogana` par le contrôle de douane (la première ligne indique `ATTESO: pulito`, attendu propre, ou `ATTESO: sospetto`, attendu suspect) et passe au rouge si un seul se trompe. Une nouvelle astuce repérée quelque part devient d'abord un cas de test ici : vous le voyez passer au rouge, puis vous corrigez le contrôle. Les autres tests (langues, organisations, comptes, configuration, écritures sur un faux GitHub, installation, licence, chiffres, repos disparus, avis de nouvelle version, nouvel essai après la publication) utilisent de fausses données et des dossiers temporaires : ils restent hors ligne et ne touchent ni au programme installé ni à vos vraies données.
+`scripts\test.ps1` fait passer les textes de `tests\screener` par le contrôle de douane (la première ligne indique `EXPECTED: clean`, attendu propre, ou `EXPECTED: suspect`, attendu suspect) et passe au rouge si un seul se trompe. Une nouvelle astuce repérée quelque part devient d'abord un cas de test ici : vous le voyez passer au rouge, puis vous corrigez le contrôle. Les autres tests (langues, organisations, comptes, configuration, écritures sur un faux GitHub, installation, licence, chiffres, repos disparus, avis de nouvelle version, nouvel essai après la publication) utilisent de fausses données et des dossiers temporaires : ils restent hors ligne et ne touchent ni au programme installé ni à vos vraies données.
 
 ## Licence
 

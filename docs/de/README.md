@@ -75,7 +75,7 @@ Die Grenzen, klar gesagt:
 ## So funktioniert es
 
 1. **Anmeldung**: über den Browser (den Device Flow von GitHub, ohne Git) oder über Git Credential Manager, falls Sie ihn schon haben. GitHub fragt nach der Berechtigung, Ihre Repos zu lesen und zu schreiben: Das Programm schreibt nur, wenn Sie eine seiner Schaltflächen drücken.
-2. **Zollkontrolle** (`src/Dogana.cs`): Jeder Text durchläuft feste Regeln, ohne jede KI. Sie suchen nach unsichtbaren Zeichen und verstecktem Text, HTML-Kommentaren, `<details>`, versteckten Markdown-Zeilen, Sätzen, die sich an eine KI richten („ignoriere deine Anweisungen“, „du bist jetzt“, Prompt-Markierungen), Aufforderungen, etwas auszuführen, Bitten, Daten zu senden, Geheimnissen, Terminalbefehlen, Blöcken mit ausführbarem Code, Bot-Erwähnungen, Links außerhalb der vertrauenswürdigen Websites, irreführenden Links, Links zu Programmen und Archiven, kodiertem Text und gemischten Alphabeten. Ein Grund genügt, damit ein Text in **Quarantäne** kommt. Diese Regeln sind eine Hilfe und finden nicht alles.
+2. **Zollkontrolle** (`src/Screener.cs`): Jeder Text durchläuft feste Regeln, ohne jede KI. Sie suchen nach unsichtbaren Zeichen und verstecktem Text, HTML-Kommentaren, `<details>`, versteckten Markdown-Zeilen, Sätzen, die sich an eine KI richten („ignoriere deine Anweisungen“, „du bist jetzt“, Prompt-Markierungen), Aufforderungen, etwas auszuführen, Bitten, Daten zu senden, Geheimnissen, Terminalbefehlen, Blöcken mit ausführbarem Code, Bot-Erwähnungen, Links außerhalb der vertrauenswürdigen Websites, irreführenden Links, Links zu Programmen und Archiven, kodiertem Text und gemischten Alphabeten. Ein Grund genügt, damit ein Text in **Quarantäne** kommt. Diese Regeln sind eine Hilfe und finden nicht alles.
 3. **Quarantäne**: Sie lesen den Text mit den unsichtbaren Zeichen in der Schreibweise `{U+200B}` und der Liste der Gründe. **Genehmigen** verschiebt ihn nach **Zu bearbeiten**, **Ablehnen** verschiebt ihn nach **Archiv**. Nichts darin ist anklickbar. Ändert sich der Text auf GitHub nach Ihrer Entscheidung, durchläuft er die Kontrolle erneut.
 4. **Zu bearbeiten**: Texte, die die Kontrolle bestanden haben oder die Sie genehmigt haben, sortiert nach Logs, Bugs, Anfragen, Fragen, Bewertungen, Pull Requests und Sonstigem.
 5. **Wiederkehrende Fehler**: Log-Zeilen, nach Signatur gruppiert (ohne Zahlen und Pfade), mit der Anzahl der Berichte, der Häufigkeit und den Versionen.
@@ -139,13 +139,13 @@ In `%LOCALAPPDATA%\ProjectManager` (oder dem Ordner der Variablen `PM_DATA_DIR`)
 Sie können es aus diesem Quellcode für den persönlichen Gebrauch kompilieren.
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File compila.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-`compila.ps1` verwendet den csc von .NET Framework 4, der bereits in Windows enthalten ist (C# 5), ohne Bibliotheken von Drittanbietern.
+`scripts\build.ps1` verwendet den csc von .NET Framework 4, der bereits in Windows enthalten ist (C# 5), ohne Bibliotheken von Drittanbietern.
 
-`prova.ps1` schickt die Texte in `prove\dogana` durch die Zollkontrolle (die erste Zeile lautet `ATTESO: pulito`, erwartet sauber, oder `ATTESO: sospetto`, erwartet verdächtig) und wird rot, wenn auch nur einer falsch ist. Ein neuer Trick, der irgendwo auftaucht, wird hier zuerst zu einem Testfall: Sie sehen ihn rot werden und korrigieren dann die Kontrolle. Die übrigen Tests (Sprachen, Organisationen, Konten, Einrichtung, Schreibvorgänge auf einem falschen GitHub, Installation, Lizenz, Zahlen, verschwundene Repos, Hinweis auf neue Versionen, erneuter Versuch nach dem Veröffentlichen) verwenden falsche Daten und temporäre Ordner: Sie bleiben vom Netz getrennt und lassen das installierte Programm und Ihre echten Daten in Ruhe.
+`scripts\test.ps1` schickt die Texte in `tests\screener` durch die Zollkontrolle (die erste Zeile lautet `EXPECTED: clean`, erwartet sauber, oder `EXPECTED: suspect`, erwartet verdächtig) und wird rot, wenn auch nur einer falsch ist. Ein neuer Trick, der irgendwo auftaucht, wird hier zuerst zu einem Testfall: Sie sehen ihn rot werden und korrigieren dann die Kontrolle. Die übrigen Tests (Sprachen, Organisationen, Konten, Einrichtung, Schreibvorgänge auf einem falschen GitHub, Installation, Lizenz, Zahlen, verschwundene Repos, Hinweis auf neue Versionen, erneuter Versuch nach dem Veröffentlichen) verwenden falsche Daten und temporäre Ordner: Sie bleiben vom Netz getrennt und lassen das installierte Programm und Ihre echten Daten in Ruhe.
 
 ## Lizenz
 

@@ -75,7 +75,7 @@ The limits, stated plainly:
 ## How it works
 
 1. **Sign-in**: through the browser (GitHub's device flow, no Git needed) or through Git Credential Manager if you already have it. GitHub asks for permission to read and write your repos: the program writes only when you press one of its buttons.
-2. **Customs check** (`src/Dogana.cs`): every text goes through fixed rules, with no AI involved. They look for invisible characters and hidden text, HTML comments, `<details>`, hidden Markdown lines, sentences aimed at an AI ("ignore your instructions", "you are now", prompt markers), orders to run something, requests to send data, secrets, terminal commands, blocks of executable code, bot mentions, links outside the trusted sites, misleading links, links to programs and archives, encoded text and mixed alphabets. One reason is enough to send a text to **Quarantine**. These rules are an aid and do not catch everything.
+2. **Customs check** (`src/Screener.cs`): every text goes through fixed rules, with no AI involved. They look for invisible characters and hidden text, HTML comments, `<details>`, hidden Markdown lines, sentences aimed at an AI ("ignore your instructions", "you are now", prompt markers), orders to run something, requests to send data, secrets, terminal commands, blocks of executable code, bot mentions, links outside the trusted sites, misleading links, links to programs and archives, encoded text and mixed alphabets. One reason is enough to send a text to **Quarantine**. These rules are an aid and do not catch everything.
 3. **Quarantine**: you read the text with invisible characters written out as `{U+200B}` and the reasons listed. **Approve** moves it to **To work on**, **Reject** moves it to **Archive**. Nothing in it is clickable. If the text changes on GitHub after your decision, it goes through the check again.
 4. **To work on**: texts that passed the check or that you approved, sorted into logs, bugs, requests, questions, reviews, pull requests and others.
 5. **Recurring errors**: log lines grouped by signature (numbers and paths removed), showing how many reports, how many times and which versions.
@@ -139,13 +139,13 @@ In `%LOCALAPPDATA%\ProjectManager` (or the folder in the `PM_DATA_DIR` variable)
 You can compile it from this source for personal use.
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File compila.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-`compila.ps1` uses the .NET Framework 4 csc that already comes with Windows (C# 5), with no third-party libraries.
+`scripts\build.ps1` uses the .NET Framework 4 csc that already comes with Windows (C# 5), with no third-party libraries.
 
-`prova.ps1` runs the texts in `prove\dogana` through the customs check (the first line says `ATTESO: pulito`, expected clean, or `ATTESO: sospetto`, expected suspicious) and turns red if even one is wrong. A new trick seen in the wild gets a test case here first: you watch it go red, then fix the check. The other tests (languages, organizations, accounts, setup, writes to a fake GitHub, installation, license, numbers, gone repos, new-version notice, retry after publishing) use fake data and temporary folders: they stay off the network and leave the installed program and your real data alone.
+`scripts\test.ps1` runs the texts in `tests\screener` through the customs check (the first line says `EXPECTED: clean` or `EXPECTED: suspect`) and turns red if even one is wrong. A new trick seen in the wild gets a test case here first: you watch it go red, then fix the check. The other tests (languages, organizations, accounts, setup, writes to a fake GitHub, installation, license, numbers, gone repos, new-version notice, retry after publishing) use fake data and temporary folders: they stay off the network and leave the installed program and your real data alone.
 
 ## License
 
@@ -165,9 +165,3 @@ The limits, stated plainly:
 - The source is public: anyone who wants to can remove the check.
 - A leaked license can still be used, but it shows the name of whoever bought it.
 - The license shows who is properly licensed; it does not prevent use.
-
-<!-- consegne:inizio -->
-## Prossima versione
-
-- Niente di nuovo dall'ultima versione.
-<!-- consegne:fine -->

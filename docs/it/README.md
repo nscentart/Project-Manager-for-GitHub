@@ -75,7 +75,7 @@ I limiti, detti chiaramente:
 ## Come funziona
 
 1. **Accesso**: dal browser (il device flow di GitHub, Git non serve) oppure con Git Credential Manager, se ce l'hai già. GitHub chiede il permesso di leggere e scrivere le tue repo: il programma scrive solo quando premi uno dei suoi tasti.
-2. **Dogana** (`src/Dogana.cs`): ogni testo passa da regole fisse, senza AI. Cercano caratteri invisibili e testo nascosto, commenti HTML, `<details>`, righe Markdown nascoste, frasi rivolte a un'AI («ignora le istruzioni», «sei ora», marcatori da prompt), ordini di eseguire, richieste di mandare dati, segreti, comandi da terminale, blocchi di codice eseguibile, menzioni a bot, link fuori dai siti fidati, link ingannevoli, link a programmi e archivi, testo codificato e alfabeti mescolati. Basta un motivo e il testo va in **Quarantena**. Queste regole sono un aiuto e non trovano tutto.
+2. **Dogana** (`src/Screener.cs`): ogni testo passa da regole fisse, senza AI. Cercano caratteri invisibili e testo nascosto, commenti HTML, `<details>`, righe Markdown nascoste, frasi rivolte a un'AI («ignora le istruzioni», «sei ora», marcatori da prompt), ordini di eseguire, richieste di mandare dati, segreti, comandi da terminale, blocchi di codice eseguibile, menzioni a bot, link fuori dai siti fidati, link ingannevoli, link a programmi e archivi, testo codificato e alfabeti mescolati. Basta un motivo e il testo va in **Quarantena**. Queste regole sono un aiuto e non trovano tutto.
 3. **Quarantena**: leggi il testo con gli invisibili scritti come `{U+200B}` e i motivi elencati. **Approva** lo sposta in **Da lavorare**, **Rifiuta** lo sposta in **Archivio**. Niente è cliccabile. Se il testo cambia su GitHub dopo la tua decisione, ripassa dalla dogana.
 4. **Da lavorare**: i testi passati dalla dogana o approvati da te, divisi in log, bug, richieste, domande, recensioni, pull request e altro.
 5. **Errori ricorrenti**: le righe dei log raggruppate per firma (numeri e percorsi tolti), con quanti rapporti, quante volte e quali versioni.
@@ -139,13 +139,13 @@ In `%LOCALAPPDATA%\ProjectManager` (o nella cartella della variabile `PM_DATA_DI
 Puoi compilarlo da questo sorgente per uso personale.
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File compila.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-`compila.ps1` usa il csc del .NET Framework 4 che c'è già in Windows (C# 5), senza librerie di terzi.
+`scripts\build.ps1` usa il csc del .NET Framework 4 che c'è già in Windows (C# 5), senza librerie di terzi.
 
-`prova.ps1` fa passare dalla dogana i testi di `prove\dogana` (la prima riga dice `ATTESO: pulito` oppure `ATTESO: sospetto`) ed è rosso se anche uno solo sbaglia. Un nuovo trucco visto in giro diventa prima un caso qui: lo vedi rosso, poi ripari il controllo. Le altre prove (lingue, organizzazioni, account, prima configurazione, scritture su un GitHub finto, installazione, licenza, numeri, repo sparite, avviso di versione nuova, riprova dopo la pubblicazione) usano dati finti e cartelle temporanee: restano fuori dalla rete e non toccano il programma installato né i tuoi dati veri.
+`scripts\test.ps1` fa passare dalla dogana i testi di `tests\screener` (la prima riga dice `EXPECTED: clean`, atteso pulito, oppure `EXPECTED: suspect`, atteso sospetto) ed è rosso se anche uno solo sbaglia. Un nuovo trucco visto in giro diventa prima un caso qui: lo vedi rosso, poi ripari il controllo. Le altre prove (lingue, organizzazioni, account, prima configurazione, scritture su un GitHub finto, installazione, licenza, numeri, repo sparite, avviso di versione nuova, riprova dopo la pubblicazione) usano dati finti e cartelle temporanee: restano fuori dalla rete e non toccano il programma installato né i tuoi dati veri.
 
 ## Licenza
 

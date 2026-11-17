@@ -75,7 +75,7 @@ Los límites, sin rodeos:
 ## Cómo funciona
 
 1. **Inicio de sesión**: con el navegador (el device flow de GitHub, sin necesidad de Git) o con Git Credential Manager si ya lo tienes. GitHub pide permiso para leer y escribir en tus repos: el programa solo escribe cuando pulsas uno de sus botones.
-2. **Control de aduana** (`src/Dogana.cs`): cada texto pasa por reglas fijas, sin ninguna IA. Buscan caracteres invisibles y texto oculto, comentarios HTML, `<details>`, líneas de Markdown ocultas, frases dirigidas a una IA («ignora tus instrucciones», «ahora eres», marcadores de prompt), órdenes de ejecutar algo, peticiones de enviar datos, secretos, comandos de terminal, bloques de código ejecutable, menciones a bots, enlaces fuera de los sitios de confianza, enlaces engañosos, enlaces a programas y archivos comprimidos, texto codificado y alfabetos mezclados. Basta un motivo para que un texto vaya a **Cuarentena**. Estas reglas son una ayuda y no lo encuentran todo.
+2. **Control de aduana** (`src/Screener.cs`): cada texto pasa por reglas fijas, sin ninguna IA. Buscan caracteres invisibles y texto oculto, comentarios HTML, `<details>`, líneas de Markdown ocultas, frases dirigidas a una IA («ignora tus instrucciones», «ahora eres», marcadores de prompt), órdenes de ejecutar algo, peticiones de enviar datos, secretos, comandos de terminal, bloques de código ejecutable, menciones a bots, enlaces fuera de los sitios de confianza, enlaces engañosos, enlaces a programas y archivos comprimidos, texto codificado y alfabetos mezclados. Basta un motivo para que un texto vaya a **Cuarentena**. Estas reglas son una ayuda y no lo encuentran todo.
 3. **Cuarentena**: lees el texto con los caracteres invisibles escritos como `{U+200B}` y la lista de motivos. **Aprobar** lo mueve a **Por trabajar**, **Rechazar** lo mueve a **Archivo**. Nada de lo que contiene se puede pulsar. Si el texto cambia en GitHub después de tu decisión, vuelve a pasar por el control.
 4. **Por trabajar**: los textos que han pasado el control o que has aprobado, repartidos en logs, bugs, solicitudes, preguntas, reseñas, pull requests y otros.
 5. **Errores recurrentes**: las líneas de log agrupadas por firma (sin números ni rutas), con cuántos informes, cuántas veces y qué versiones.
@@ -139,13 +139,13 @@ En `%LOCALAPPDATA%\ProjectManager` (o en la carpeta de la variable `PM_DATA_DIR`
 Puedes compilarlo a partir de este código fuente para uso personal.
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File compila.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File prova.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test.ps1
 ```
 
-`compila.ps1` usa el csc de .NET Framework 4 que ya viene con Windows (C# 5), sin bibliotecas de terceros.
+`scripts\build.ps1` usa el csc de .NET Framework 4 que ya viene con Windows (C# 5), sin bibliotecas de terceros.
 
-`prova.ps1` pasa por el control de aduana los textos de `prove\dogana` (la primera línea dice `ATTESO: pulito`, se espera limpio, o `ATTESO: sospetto`, se espera sospechoso) y se pone en rojo si falla aunque sea uno. Un truco nuevo visto por ahí se convierte primero en un caso de prueba aquí: lo ves en rojo y luego corriges el control. Las demás pruebas (idiomas, organizaciones, cuentas, configuración, escrituras en un GitHub falso, instalación, licencia, números, repos desaparecidos, aviso de versión nueva, reintento tras publicar) usan datos falsos y carpetas temporales: no salen a la red y no tocan el programa instalado ni tus datos reales.
+`scripts\test.ps1` pasa por el control de aduana los textos de `tests\screener` (la primera línea dice `EXPECTED: clean`, se espera limpio, o `EXPECTED: suspect`, se espera sospechoso) y se pone en rojo si falla aunque sea uno. Un truco nuevo visto por ahí se convierte primero en un caso de prueba aquí: lo ves en rojo y luego corriges el control. Las demás pruebas (idiomas, organizaciones, cuentas, configuración, escrituras en un GitHub falso, instalación, licencia, números, repos desaparecidos, aviso de versión nueva, reintento tras publicar) usan datos falsos y carpetas temporales: no salen a la red y no tocan el programa instalado ni tus datos reales.
 
 ## Licencia
 
