@@ -2,7 +2,7 @@
 
 **English** | [Italiano](docs/it/README.md) | [Français](docs/fr/README.md) | [Español](docs/es/README.md) | [Deutsch](docs/de/README.md)
 
-A Windows program for managing your GitHub repos from its buttons, without knowing Git: create and change repos, upload a folder, publish releases, choose who works on them. It also reads what arrives on your repos (issues, comments, pull requests and the error-log reports from WeightMonitor), holds back suspicious text before you act on it, and prepares the work for a Claude Code chat. It also shows how each repo is going: views, downloads, where people come from.
+A Windows program for managing your GitHub repos from its buttons, without knowing Git: create and change repos, upload a folder, publish releases, choose who works on them. It also reads what arrives on your repos (issues, comments, pull requests and the error-log reports from WeightMonitor), holds back suspicious text before you act on it, and gathers the texts to work on into a plain text file you can read. It also shows how each repo is going: views, downloads, where people come from.
 
 **The program speaks Italian, English, French, Spanish and German.** You choose the language the first time you open it and can change it at any time in **Settings**.
 
@@ -70,17 +70,17 @@ The limits, stated plainly:
 - Errors already saved stay in the language they were written in.
 - The automatic category of reports understands only Italian and English.
 - In French, Spanish and German the customs check can raise false alarms and does not catch everything.
-- The program's log and the Package for Claude Code stay in Italian.
+- The program's log stays in Italian.
 
 ## How it works
 
 1. **Sign-in**: through the browser (GitHub's device flow, no Git needed) or through Git Credential Manager if you already have it. GitHub asks for permission to read and write your repos: the program writes only when you press one of its buttons.
 2. **Customs check** (`src/Dogana.cs`): every text goes through fixed rules, with no AI involved. They look for invisible characters and hidden text, HTML comments, `<details>`, hidden Markdown lines, sentences aimed at an AI ("ignore your instructions", "you are now", prompt markers), orders to run something, requests to send data, secrets, terminal commands, blocks of executable code, bot mentions, links outside the trusted sites, misleading links, links to programs and archives, encoded text and mixed alphabets. One reason is enough to send a text to **Quarantine**. These rules are an aid and do not catch everything.
 3. **Quarantine**: you read the text with invisible characters written out as `{U+200B}` and the reasons listed. **Approve** moves it to **To work on**, **Reject** moves it to **Archive**. Nothing in it is clickable. If the text changes on GitHub after your decision, it goes through the check again.
-4. **To work on**: texts that passed the check or that you approved, sorted into logs, bugs, requests, questions, reviews, pull requests and others. Summaries with Ollama (a model on your own computer, free and offline) start only from their button and only on these texts, and the answer goes through the check too.
+4. **To work on**: texts that passed the check or that you approved, sorted into logs, bugs, requests, questions, reviews, pull requests and others.
 5. **Recurring errors**: log lines grouped by signature (numbers and paths removed), showing how many reports, how many times and which versions.
-6. **Package for Claude Code**: one `.md` per repo in `packages\`, also copied to the clipboard only when it is for a single public repo. External texts sit in `text` blocks, declared as data and not as instructions, and anything that looks like a key is masked.
-7. **Repo panel**: on the left, your repos labelled private or public. On the right, for each one, **Overview** in plain words (version, who can see it, collaborators, license, README, reports, with **What's missing** at the top) and the tabs above. At the top of **Overview** there is **How it's going**, described below. **All repos** sums everything up in a table. The Ollama model, the trusted sites and the language are in **Settings**. The **Following reports** switch at the top shows whether you follow the reports of that repo.
+6. **Text export**: the **Export to a text file** button, under **To work on** and under **Recurring errors**, writes one `.txt` per repo in `exports\` and opens the folder with the file selected. For each text it has the kind, title, author, date, link and text, plus the recurring errors, in plain words for you to read. Anything that looks like a key is masked, hidden characters are shown, and nothing is copied to the clipboard.
+7. **Repo panel**: on the left, your repos labelled private or public. On the right, for each one, **Overview** in plain words (version, who can see it, collaborators, license, README, reports, with **What's missing** at the top) and the tabs above. At the top of **Overview** there is **How it's going**, described below. **All repos** sums everything up in a table. The trusted sites (texts with links to other sites wait in **Quarantine**) and the language are in **Settings**. The **Following reports** switch at the top shows whether you follow the reports of that repo.
 8. **Manage**: the tab with the buttons for working on GitHub, described below.
 
 ## How it's going
@@ -101,7 +101,7 @@ The limits, stated plainly:
 
 ## Repos that are gone
 
-A repo that GitHub no longer lists moves into a closed group at the bottom, **Gone (N)**, on the left and in the table: one click opens it. **Remove from the list**, on its page, takes it off; **Remove all**, in the group, does so for all the gone repos you can see (those of another account stay). The confirmation says that nothing changes on GitHub and how many downloaded texts, decisions and days of history this computer loses. If a repo comes back on GitHub, it returns by itself at the next update.
+A repo that GitHub no longer lists moves into a closed group at the bottom, **Gone (N)**, on the left and in the table: one click opens it. To take one off the list, right-click it on the left and choose **Remove from the list...**, or select it and press the Delete key; right-click the group row for **Remove all from the list...**, which covers all the gone repos you can see (those of another account stay). The **Manage** tab of a gone repo has a **Remove from the list** button too, and so do its page and the group in **Overview**. A repo you delete from the program lands here as well. The confirmation says that nothing changes on GitHub and how many downloaded texts, decisions and days of history this computer loses. If a repo comes back on GitHub, it returns by itself at the next update.
 
 ## Managing repos
 
@@ -132,7 +132,7 @@ The safeguards:
 
 ## Data
 
-In `%LOCALAPPDATA%\ProjectManager` (or the folder in the `PM_DATA_DIR` variable): `archive.json` (a copy of the issues, your decisions, summaries, trusted sites, connected accounts without their keys, the repos folder), `language.txt` (the language you chose), `history.json` (the numbers day by day: if it gets damaged, the program sets it aside and starts a new one), `license.txt` if you added a license, `packages\` and the program's log. An archive from an earlier version stays valid: the account you used before keeps using Git's sign-in.
+In `%LOCALAPPDATA%\ProjectManager` (or the folder in the `PM_DATA_DIR` variable): `archive.json` (a copy of the issues, your decisions, trusted sites, connected accounts without their keys, the repos folder), `language.txt` (the language you chose), `history.json` (the numbers day by day: if it gets damaged, the program sets it aside and starts a new one), `license.txt` if you added a license, `exports\` and the program's log. An archive from an earlier version stays valid: the account you used before keeps using Git's sign-in.
 
 ## Build and test
 

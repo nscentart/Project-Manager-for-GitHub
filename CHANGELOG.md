@@ -2,7 +2,11 @@
 
 ## 1.2 (06/11/2026)
 
-- Code base rewritten in English and cleaned up; same features as 1.1.
+- The summaries with Ollama are gone: the program no longer looks for Ollama and Settings no longer asks for a model.
+- The Claude Code package is replaced by a plain text export: the **Export to a text file** button writes one `.txt` per repo in `exports\`, with the texts to work on and the recurring errors, for you to read. Keys are still masked and hidden characters shown. Nothing is copied to the clipboard.
+- Repos that are gone can be taken off the list from where you look: right-click the repo or the **Gone** group on the left, the Delete key, the **Manage** tab and **Overview**. It always asks first, and nothing changes on GitHub. A repo you delete from the program ends up in **Gone** and says so.
+- Settings explains that texts with links to sites outside the trusted list wait in **Quarantine** until you approve them.
+- Code base rewritten in English and cleaned up.
 - Your data carries over: what 1.0 and 1.1 saved is read when the new files are missing, and the old files are never changed. 1.2 saves under English file names next to them.
 - Releases 1.0 and 1.1 were withdrawn.
 

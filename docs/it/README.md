@@ -2,7 +2,7 @@
 
 [English](../../README.md) | **Italiano** | [Français](../fr/README.md) | [Español](../es/README.md) | [Deutsch](../de/README.md)
 
-Un programma per Windows con cui gestisci le tue repo GitHub dai suoi tasti, senza conoscere Git: crei e modifichi le repo, carichi una cartella, pubblichi le release, scegli chi ci lavora. Legge anche quello che arriva sulle tue repo (issue, commenti, pull request e i rapporti col log degli errori di WeightMonitor), trattiene i testi sospetti prima che tu ci lavori e prepara il lavoro per una chat di Claude Code. E ti mostra come sta andando ogni repo: visite, download, da dove arriva la gente.
+Un programma per Windows con cui gestisci le tue repo GitHub dai suoi tasti, senza conoscere Git: crei e modifichi le repo, carichi una cartella, pubblichi le release, scegli chi ci lavora. Legge anche quello che arriva sulle tue repo (issue, commenti, pull request e i rapporti col log degli errori di WeightMonitor), trattiene i testi sospetti prima che tu ci lavori e raccoglie i testi da lavorare in un file di testo che leggi tu. E ti mostra come sta andando ogni repo: visite, download, da dove arriva la gente.
 
 **Il programma parla italiano, inglese, francese, spagnolo e tedesco.** Scegli la lingua la prima volta che lo apri e la cambi quando vuoi in **Impostazioni**.
 
@@ -70,17 +70,17 @@ I limiti, detti chiaramente:
 - Gli errori già salvati restano nella lingua in cui sono stati scritti.
 - La categoria automatica delle segnalazioni capisce solo italiano e inglese.
 - In francese, spagnolo e tedesco la dogana può dare falsi allarmi e non trova tutto.
-- Il log del programma e il Pacchetto per Claude Code restano in italiano.
+- Il log del programma resta in italiano.
 
 ## Come funziona
 
 1. **Accesso**: dal browser (il device flow di GitHub, Git non serve) oppure con Git Credential Manager, se ce l'hai già. GitHub chiede il permesso di leggere e scrivere le tue repo: il programma scrive solo quando premi uno dei suoi tasti.
 2. **Dogana** (`src/Dogana.cs`): ogni testo passa da regole fisse, senza AI. Cercano caratteri invisibili e testo nascosto, commenti HTML, `<details>`, righe Markdown nascoste, frasi rivolte a un'AI («ignora le istruzioni», «sei ora», marcatori da prompt), ordini di eseguire, richieste di mandare dati, segreti, comandi da terminale, blocchi di codice eseguibile, menzioni a bot, link fuori dai siti fidati, link ingannevoli, link a programmi e archivi, testo codificato e alfabeti mescolati. Basta un motivo e il testo va in **Quarantena**. Queste regole sono un aiuto e non trovano tutto.
 3. **Quarantena**: leggi il testo con gli invisibili scritti come `{U+200B}` e i motivi elencati. **Approva** lo sposta in **Da lavorare**, **Rifiuta** lo sposta in **Archivio**. Niente è cliccabile. Se il testo cambia su GitHub dopo la tua decisione, ripassa dalla dogana.
-4. **Da lavorare**: i testi passati dalla dogana o approvati da te, divisi in log, bug, richieste, domande, recensioni, pull request e altro. I riassunti con Ollama (un modello sul tuo computer, gratis e senza rete) partono solo dal loro tasto e solo su questi testi, e anche la risposta ripassa dalla dogana.
+4. **Da lavorare**: i testi passati dalla dogana o approvati da te, divisi in log, bug, richieste, domande, recensioni, pull request e altro.
 5. **Errori ricorrenti**: le righe dei log raggruppate per firma (numeri e percorsi tolti), con quanti rapporti, quante volte e quali versioni.
-6. **Pacchetto per Claude Code**: un `.md` per repo in `packages\`, copiato anche negli appunti solo quando è per una sola repo pubblica. I testi esterni stanno in blocchi `text`, dichiarati come dati e non come istruzioni, e ciò che sembra una chiave viene coperto.
-7. **Pannello delle repo**: a sinistra le tue repo con l'etichetta privata o pubblica. A destra, per ognuna, la **Panoramica** in parole semplici (versione, chi la vede, collaboratori, licenza, README, segnalazioni, con **Cosa manca** in testa) e le schede qui sopra. In cima alla **Panoramica** c'è **Come sta andando**, descritto qui sotto. **Tutte le repo** riassume tutto in una tabella. Il modello di Ollama, i siti fidati e la lingua stanno in **Impostazioni**. L'interruttore **Seguo le segnalazioni** in alto dice se segui le segnalazioni di quella repo.
+6. **Esportazione di testo**: il tasto **Esporta in un file di testo**, in **Da lavorare** e in **Errori ricorrenti**, scrive un `.txt` per repo in `exports\` e apre la cartella con il file selezionato. Per ogni testo ci sono tipo, titolo, autore, data, collegamento e testo, più gli errori ricorrenti, in parole semplici da leggere. Ciò che sembra una chiave viene coperto, i caratteri nascosti si vedono e niente va negli appunti.
+7. **Pannello delle repo**: a sinistra le tue repo con l'etichetta privata o pubblica. A destra, per ognuna, la **Panoramica** in parole semplici (versione, chi la vede, collaboratori, licenza, README, segnalazioni, con **Cosa manca** in testa) e le schede qui sopra. In cima alla **Panoramica** c'è **Come sta andando**, descritto qui sotto. **Tutte le repo** riassume tutto in una tabella. I siti fidati (i testi con link ad altri siti aspettano in **Quarantena**) e la lingua stanno in **Impostazioni**. L'interruttore **Seguo le segnalazioni** in alto dice se segui le segnalazioni di quella repo.
 8. **Gestisci**: la scheda coi tasti per lavorare su GitHub, descritta qui sotto.
 
 ## Come sta andando
@@ -101,7 +101,7 @@ I limiti, detti chiaramente:
 
 ## Repo sparite
 
-Una repo che GitHub non elenca più passa in un gruppo chiuso in fondo, **Sparite (N)**, a sinistra e in tabella: si apre con un clic. **Togli dall'elenco**, nella sua pagina, la toglie; **Togli tutte**, nel gruppo, fa lo stesso con tutte le sparite che vedi (quelle di un altro account restano). La conferma dice che su GitHub non cambia niente e quanti testi scaricati, decisioni e giorni di storico si perdono su questo computer. Se una repo torna su GitHub, al prossimo aggiornamento torna da sola.
+Una repo che GitHub non elenca più passa in un gruppo chiuso in fondo, **Sparite (N)**, a sinistra e in tabella: si apre con un clic. Per toglierne una dall'elenco, clic destro su di lei a sinistra e scegli **Togli dall'elenco...**, oppure selezionala e premi il tasto Canc; clic destro sulla riga del gruppo per **Togli tutte dall'elenco...**, che vale per tutte le sparite che vedi (quelle di un altro account restano). Anche la scheda **Gestisci** di una repo sparita ha il tasto **Togli dall'elenco**, e lo hanno la sua pagina e il gruppo nella **Panoramica**. Una repo che cancelli dal programma finisce qui. La conferma dice che su GitHub non cambia niente e quanti testi scaricati, decisioni e giorni di storico si perdono su questo computer. Se una repo torna su GitHub, al prossimo aggiornamento torna da sola.
 
 ## Gestire le repo
 
@@ -132,7 +132,7 @@ Le protezioni:
 
 ## Dati
 
-In `%LOCALAPPDATA%\ProjectManager` (o nella cartella della variabile `PM_DATA_DIR`): `archive.json` (copia delle issue, le tue decisioni, riassunti, siti fidati, account collegati senza le chiavi, la cartella delle repo), `language.txt` (la lingua scelta), `history.json` (i numeri giorno per giorno: se si rovina, il programma lo mette da parte e ne inizia uno nuovo), `license.txt` se hai aggiunto una licenza, `packages\` e il log del programma. Un archivio di una versione precedente resta valido: l'account che usavi continua a entrare con Git.
+In `%LOCALAPPDATA%\ProjectManager` (o nella cartella della variabile `PM_DATA_DIR`): `archive.json` (copia delle issue, le tue decisioni, siti fidati, account collegati senza le chiavi, la cartella delle repo), `language.txt` (la lingua scelta), `history.json` (i numeri giorno per giorno: se si rovina, il programma lo mette da parte e ne inizia uno nuovo), `license.txt` se hai aggiunto una licenza, `exports\` e il log del programma. Un archivio di una versione precedente resta valido: l'account che usavi continua a entrare con Git.
 
 ## Compilare e provare
 

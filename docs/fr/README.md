@@ -2,7 +2,7 @@
 
 [English](../../README.md) | [Italiano](../it/README.md) | **Français** | [Español](../es/README.md) | [Deutsch](../de/README.md)
 
-Un programme Windows pour gérer vos repos GitHub depuis ses boutons, sans connaître Git : créer et modifier des repos, envoyer un dossier, publier des releases, choisir qui y travaille. Il lit aussi ce qui arrive sur vos repos (issues, commentaires, pull requests et rapports contenant le journal d'erreurs de WeightMonitor), retient les textes suspects avant que vous ne les traitiez et prépare le travail pour une conversation Claude Code. Et il montre comment ça se passe pour chaque repo : visites, téléchargements, d'où viennent les gens.
+Un programme Windows pour gérer vos repos GitHub depuis ses boutons, sans connaître Git : créer et modifier des repos, envoyer un dossier, publier des releases, choisir qui y travaille. Il lit aussi ce qui arrive sur vos repos (issues, commentaires, pull requests et rapports contenant le journal d'erreurs de WeightMonitor), retient les textes suspects avant que vous ne les traitiez et rassemble les textes à traiter dans un fichier texte que vous lisez. Et il montre comment ça se passe pour chaque repo : visites, téléchargements, d'où viennent les gens.
 
 **Le programme parle italien, anglais, français, espagnol et allemand.** Vous choisissez la langue à la première ouverture et vous pouvez la changer à tout moment dans **Paramètres**.
 
@@ -70,17 +70,17 @@ Les limites, sans détour :
 - Les erreurs déjà enregistrées restent dans la langue où elles ont été écrites.
 - La catégorie automatique des signalements ne comprend que l'italien et l'anglais.
 - En français, en espagnol et en allemand, le contrôle de douane peut donner de fausses alertes et ne trouve pas tout.
-- Le journal du programme et le Paquet pour Claude Code restent en italien.
+- Le journal du programme reste en italien.
 
 ## Fonctionnement
 
 1. **Connexion** : par le navigateur (le device flow de GitHub, sans Git) ou par Git Credential Manager si vous l'avez déjà. GitHub demande l'autorisation de lire et d'écrire dans vos repos : le programme n'écrit que lorsque vous appuyez sur l'un de ses boutons.
 2. **Contrôle de douane** (`src/Dogana.cs`) : chaque texte passe par des règles fixes, sans aucune IA. Elles cherchent les caractères invisibles et le texte caché, les commentaires HTML, `<details>`, les lignes Markdown cachées, les phrases destinées à une IA (« ignorez vos instructions », « vous êtes maintenant », marqueurs de prompt), les ordres d'exécuter quelque chose, les demandes d'envoi de données, les secrets, les commandes de terminal, les blocs de code exécutable, les mentions de bots, les liens hors des sites de confiance, les liens trompeurs, les liens vers des programmes et des archives, le texte encodé et les alphabets mélangés. Un seul motif suffit pour envoyer un texte en **Quarantaine**. Ces règles sont une aide et ne trouvent pas tout.
 3. **Quarantaine** : vous lisez le texte avec les caractères invisibles écrits sous la forme `{U+200B}` et la liste des motifs. **Approuver** le déplace vers **À traiter**, **Refuser** le déplace vers **Archives**. Rien n'y est cliquable. Si le texte change sur GitHub après votre décision, il repasse par le contrôle.
-4. **À traiter** : les textes qui ont passé le contrôle ou que vous avez approuvés, répartis en logs, bugs, demandes, questions, avis, pull requests et autres. Les résumés avec Ollama (un modèle sur votre ordinateur, gratuit et hors ligne) ne démarrent qu'avec leur bouton et seulement sur ces textes, et la réponse repasse elle aussi par le contrôle.
+4. **À traiter** : les textes qui ont passé le contrôle ou que vous avez approuvés, répartis en logs, bugs, demandes, questions, avis, pull requests et autres.
 5. **Erreurs récurrentes** : les lignes de log regroupées par signature (chiffres et chemins retirés), avec le nombre de rapports, le nombre de fois et les versions concernées.
-6. **Paquet pour Claude Code** : un `.md` par repo dans `packages\`, copié aussi dans le presse-papiers uniquement s'il concerne un seul repo public. Les textes externes sont placés dans des blocs `text`, déclarés comme des données et non comme des instructions, et tout ce qui ressemble à une clé est masqué.
-7. **Panneau des repos** : à gauche, vos repos avec l'étiquette privé ou public. À droite, pour chacun, la **Vue d'ensemble** en termes simples (version, qui le voit, collaborateurs, licence, README, signalements, avec **Ce qui manque** en tête) et les onglets ci-dessus. En haut de la **Vue d'ensemble** se trouve **Comment ça se passe**, décrit ci-dessous. **Tous les repos** résume tout dans un tableau. Le modèle Ollama, les sites de confiance et la langue se trouvent dans **Paramètres**. L'interrupteur **Suivre les signalements**, en haut, indique si vous suivez les signalements de ce repo.
+6. **Export en texte** : le bouton **Exporter dans un fichier texte**, dans **À traiter** et dans **Erreurs récurrentes**, écrit un `.txt` par repo dans `exports\` et ouvre le dossier avec le fichier sélectionné. Pour chaque texte, il contient le type, le titre, l'auteur, la date, le lien et le texte, plus les erreurs récurrentes, en termes simples à lire. Tout ce qui ressemble à une clé est masqué, les caractères cachés sont visibles et rien n'est copié dans le presse-papiers.
+7. **Panneau des repos** : à gauche, vos repos avec l'étiquette privé ou public. À droite, pour chacun, la **Vue d'ensemble** en termes simples (version, qui le voit, collaborateurs, licence, README, signalements, avec **Ce qui manque** en tête) et les onglets ci-dessus. En haut de la **Vue d'ensemble** se trouve **Comment ça se passe**, décrit ci-dessous. **Tous les repos** résume tout dans un tableau. Les sites de confiance (les textes avec des liens vers d'autres sites attendent en **Quarantaine**) et la langue se trouvent dans **Paramètres**. L'interrupteur **Suivre les signalements**, en haut, indique si vous suivez les signalements de ce repo.
 8. **Gérer** : l'onglet avec les boutons pour travailler sur GitHub, décrit ci-dessous.
 
 ## Comment ça se passe
@@ -101,7 +101,7 @@ Les limites, dites clairement :
 
 ## Repos disparus
 
-Un repo que GitHub ne liste plus passe dans un groupe fermé en bas, **Disparus (N)**, à gauche et dans le tableau : un clic l'ouvre. **Retirer de la liste**, sur sa page, le retire ; **Tout retirer**, dans le groupe, fait de même pour tous les repos disparus que vous voyez (ceux d'un autre compte restent). La confirmation indique que rien ne change sur GitHub et combien de textes téléchargés, de décisions et de jours d'historique cet ordinateur perd. Si un repo revient sur GitHub, il réapparaît tout seul à la prochaine actualisation.
+Un repo que GitHub ne liste plus passe dans un groupe fermé en bas, **Disparus (N)**, à gauche et dans le tableau : un clic l'ouvre. Pour en retirer un de la liste, faites un clic droit dessus à gauche et choisissez **Retirer de la liste...**, ou sélectionnez-le et appuyez sur la touche Suppr ; clic droit sur la ligne du groupe pour **Tout retirer de la liste...**, qui concerne tous les repos disparus que vous voyez (ceux d'un autre compte restent). L'onglet **Gérer** d'un repo disparu a aussi un bouton **Retirer de la liste**, comme sa page et le groupe dans la **Vue d'ensemble**. Un repo que vous supprimez depuis le programme arrive ici aussi. La confirmation indique que rien ne change sur GitHub et combien de textes téléchargés, de décisions et de jours d'historique cet ordinateur perd. Si un repo revient sur GitHub, il réapparaît tout seul à la prochaine actualisation.
 
 ## Gérer les repos
 
@@ -132,7 +132,7 @@ Les protections :
 
 ## Données
 
-Dans `%LOCALAPPDATA%\ProjectManager` (ou le dossier de la variable `PM_DATA_DIR`) : `archive.json` (une copie des issues, vos décisions, les résumés, les sites de confiance, les comptes connectés sans leurs clés, le dossier des repos), `language.txt` (la langue choisie), `history.json` (les chiffres jour par jour : s'il est abîmé, le programme le met de côté et en commence un nouveau), `license.txt` si vous avez ajouté une licence, `packages\` et le journal du programme. Une archive d'une version précédente reste valable : le compte que vous utilisiez continue à se connecter avec Git.
+Dans `%LOCALAPPDATA%\ProjectManager` (ou le dossier de la variable `PM_DATA_DIR`) : `archive.json` (une copie des issues, vos décisions, les sites de confiance, les comptes connectés sans leurs clés, le dossier des repos), `language.txt` (la langue choisie), `history.json` (les chiffres jour par jour : s'il est abîmé, le programme le met de côté et en commence un nouveau), `license.txt` si vous avez ajouté une licence, `exports\` et le journal du programme. Une archive d'une version précédente reste valable : le compte que vous utilisiez continue à se connecter avec Git.
 
 ## Compiler et tester
 

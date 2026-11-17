@@ -2,7 +2,7 @@
 
 [English](../../README.md) | [Italiano](../it/README.md) | [Français](../fr/README.md) | [Español](../es/README.md) | **Deutsch**
 
-Ein Windows-Programm, mit dem Sie Ihre GitHub-Repos über Schaltflächen verwalten, ohne Git zu kennen: Repos erstellen und ändern, einen Ordner hochladen, Releases veröffentlichen, festlegen, wer daran arbeitet. Es liest außerdem, was auf Ihren Repos ankommt (Issues, Kommentare, Pull Requests und die Berichte mit dem Fehlerprotokoll von WeightMonitor), hält verdächtige Texte zurück, bevor Sie damit arbeiten, und bereitet die Arbeit für einen Chat mit Claude Code vor. Außerdem zeigt es, wie es bei jedem Repo läuft: Aufrufe, Downloads, woher die Leute kommen.
+Ein Windows-Programm, mit dem Sie Ihre GitHub-Repos über Schaltflächen verwalten, ohne Git zu kennen: Repos erstellen und ändern, einen Ordner hochladen, Releases veröffentlichen, festlegen, wer daran arbeitet. Es liest außerdem, was auf Ihren Repos ankommt (Issues, Kommentare, Pull Requests und die Berichte mit dem Fehlerprotokoll von WeightMonitor), hält verdächtige Texte zurück, bevor Sie damit arbeiten, und sammelt die zu bearbeitenden Texte in einer Textdatei, die Sie selbst lesen. Außerdem zeigt es, wie es bei jedem Repo läuft: Aufrufe, Downloads, woher die Leute kommen.
 
 **Das Programm spricht Italienisch, Englisch, Französisch, Spanisch und Deutsch.** Sie wählen die Sprache beim ersten Öffnen und können sie jederzeit unter **Einstellungen** ändern.
 
@@ -70,17 +70,17 @@ Die Grenzen, klar gesagt:
 - Bereits gespeicherte Fehler bleiben in der Sprache, in der sie geschrieben wurden.
 - Die automatische Kategorie der Meldungen versteht nur Italienisch und Englisch.
 - Auf Französisch, Spanisch und Deutsch kann die Zollkontrolle Fehlalarme auslösen und findet nicht alles.
-- Das Protokoll des Programms und das Paket für Claude Code bleiben auf Italienisch.
+- Das Protokoll des Programms bleibt auf Italienisch.
 
 ## So funktioniert es
 
 1. **Anmeldung**: über den Browser (den Device Flow von GitHub, ohne Git) oder über Git Credential Manager, falls Sie ihn schon haben. GitHub fragt nach der Berechtigung, Ihre Repos zu lesen und zu schreiben: Das Programm schreibt nur, wenn Sie eine seiner Schaltflächen drücken.
 2. **Zollkontrolle** (`src/Dogana.cs`): Jeder Text durchläuft feste Regeln, ohne jede KI. Sie suchen nach unsichtbaren Zeichen und verstecktem Text, HTML-Kommentaren, `<details>`, versteckten Markdown-Zeilen, Sätzen, die sich an eine KI richten („ignoriere deine Anweisungen“, „du bist jetzt“, Prompt-Markierungen), Aufforderungen, etwas auszuführen, Bitten, Daten zu senden, Geheimnissen, Terminalbefehlen, Blöcken mit ausführbarem Code, Bot-Erwähnungen, Links außerhalb der vertrauenswürdigen Websites, irreführenden Links, Links zu Programmen und Archiven, kodiertem Text und gemischten Alphabeten. Ein Grund genügt, damit ein Text in **Quarantäne** kommt. Diese Regeln sind eine Hilfe und finden nicht alles.
 3. **Quarantäne**: Sie lesen den Text mit den unsichtbaren Zeichen in der Schreibweise `{U+200B}` und der Liste der Gründe. **Genehmigen** verschiebt ihn nach **Zu bearbeiten**, **Ablehnen** verschiebt ihn nach **Archiv**. Nichts darin ist anklickbar. Ändert sich der Text auf GitHub nach Ihrer Entscheidung, durchläuft er die Kontrolle erneut.
-4. **Zu bearbeiten**: Texte, die die Kontrolle bestanden haben oder die Sie genehmigt haben, sortiert nach Logs, Bugs, Anfragen, Fragen, Bewertungen, Pull Requests und Sonstigem. Zusammenfassungen mit Ollama (ein Modell auf Ihrem eigenen Computer, kostenlos und offline) starten nur über ihre Schaltfläche und nur für diese Texte, und auch die Antwort durchläuft die Kontrolle.
+4. **Zu bearbeiten**: Texte, die die Kontrolle bestanden haben oder die Sie genehmigt haben, sortiert nach Logs, Bugs, Anfragen, Fragen, Bewertungen, Pull Requests und Sonstigem.
 5. **Wiederkehrende Fehler**: Log-Zeilen, nach Signatur gruppiert (ohne Zahlen und Pfade), mit der Anzahl der Berichte, der Häufigkeit und den Versionen.
-6. **Paket für Claude Code**: eine `.md`-Datei pro Repo in `packages\`, die nur dann auch in die Zwischenablage kopiert wird, wenn sie für ein einzelnes öffentliches Repo ist. Externe Texte stehen in `text`-Blöcken, als Daten und nicht als Anweisungen gekennzeichnet, und alles, was wie ein Schlüssel aussieht, wird verdeckt.
-7. **Repo-Bereich**: links Ihre Repos mit der Kennzeichnung privat oder öffentlich. Rechts für jedes die **Übersicht** in einfachen Worten (Version, wer es sieht, Mitwirkende, Lizenz, README, Meldungen, mit **Was fehlt** ganz oben) und die oben genannten Registerkarten. Ganz oben in der **Übersicht** steht **Wie es läuft**, siehe unten. **Alle Repos** fasst alles in einer Tabelle zusammen. Das Ollama-Modell, die vertrauenswürdigen Websites und die Sprache finden Sie unter **Einstellungen**. Der Schalter **Meldungen verfolgen** oben zeigt, ob Sie den Meldungen dieses Repos folgen.
+6. **Text-Export**: die Schaltfläche **In eine Textdatei exportieren**, unter **Zu bearbeiten** und unter **Wiederkehrende Fehler**, schreibt eine `.txt`-Datei pro Repo nach `exports\` und öffnet den Ordner mit der markierten Datei. Zu jedem Text stehen Art, Titel, Autor, Datum, Link und Text darin, dazu die wiederkehrenden Fehler, in einfachen Worten zum Lesen. Alles, was wie ein Schlüssel aussieht, wird verdeckt, versteckte Zeichen werden sichtbar gemacht, und nichts landet in der Zwischenablage.
+7. **Repo-Bereich**: links Ihre Repos mit der Kennzeichnung privat oder öffentlich. Rechts für jedes die **Übersicht** in einfachen Worten (Version, wer es sieht, Mitwirkende, Lizenz, README, Meldungen, mit **Was fehlt** ganz oben) und die oben genannten Registerkarten. Ganz oben in der **Übersicht** steht **Wie es läuft**, siehe unten. **Alle Repos** fasst alles in einer Tabelle zusammen. Die vertrauenswürdigen Websites (Texte mit Links zu anderen Websites warten in der **Quarantäne**) und die Sprache finden Sie unter **Einstellungen**. Der Schalter **Meldungen verfolgen** oben zeigt, ob Sie den Meldungen dieses Repos folgen.
 8. **Verwalten**: die Registerkarte mit den Schaltflächen für die Arbeit auf GitHub, siehe unten.
 
 ## Wie es läuft
@@ -101,7 +101,7 @@ Die Grenzen, klar gesagt:
 
 ## Verschwundene Repos
 
-Ein Repo, das GitHub nicht mehr aufführt, wandert in eine geschlossene Gruppe ganz unten, **Verschwunden (N)**, links und in der Tabelle: Ein Klick öffnet sie. **Aus der Liste entfernen** auf seiner Seite entfernt es; **Alle entfernen** in der Gruppe tut das für alle verschwundenen Repos, die Sie sehen (die eines anderen Kontos bleiben). Die Bestätigung sagt, dass sich auf GitHub nichts ändert und wie viele heruntergeladene Texte, Entscheidungen und Tage Verlauf dieser Computer verliert. Kommt ein Repo auf GitHub zurück, erscheint es bei der nächsten Aktualisierung von selbst wieder.
+Ein Repo, das GitHub nicht mehr aufführt, wandert in eine geschlossene Gruppe ganz unten, **Verschwunden (N)**, links und in der Tabelle: Ein Klick öffnet sie. Um eines aus der Liste zu nehmen, klicken Sie links mit der rechten Maustaste darauf und wählen **Aus der Liste entfernen...**, oder wählen es aus und drücken die Entf-Taste; ein Rechtsklick auf die Gruppenzeile bietet **Alle aus der Liste entfernen...** für alle verschwundenen Repos, die Sie sehen (die eines anderen Kontos bleiben). Auch die Registerkarte **Verwalten** eines verschwundenen Repos hat die Schaltfläche **Aus der Liste entfernen**, ebenso seine Seite und die Gruppe in der **Übersicht**. Ein Repo, das Sie über das Programm löschen, landet ebenfalls hier. Die Bestätigung sagt, dass sich auf GitHub nichts ändert und wie viele heruntergeladene Texte, Entscheidungen und Tage Verlauf dieser Computer verliert. Kommt ein Repo auf GitHub zurück, erscheint es bei der nächsten Aktualisierung von selbst wieder.
 
 ## Repos verwalten
 
@@ -132,7 +132,7 @@ Die Schutzmaßnahmen:
 
 ## Daten
 
-In `%LOCALAPPDATA%\ProjectManager` (oder dem Ordner der Variablen `PM_DATA_DIR`): `archive.json` (eine Kopie der Issues, Ihre Entscheidungen, Zusammenfassungen, vertrauenswürdige Websites, verbundene Konten ohne ihre Schlüssel, der Repo-Ordner), `language.txt` (die gewählte Sprache), `history.json` (die Zahlen Tag für Tag: Ist sie beschädigt, legt das Programm sie beiseite und beginnt eine neue), `license.txt`, wenn Sie eine Lizenz hinzugefügt haben, `packages\` und das Protokoll des Programms. Ein Archiv aus einer früheren Version bleibt gültig: Das bisher verwendete Konto meldet sich weiter über Git an.
+In `%LOCALAPPDATA%\ProjectManager` (oder dem Ordner der Variablen `PM_DATA_DIR`): `archive.json` (eine Kopie der Issues, Ihre Entscheidungen, vertrauenswürdige Websites, verbundene Konten ohne ihre Schlüssel, der Repo-Ordner), `language.txt` (die gewählte Sprache), `history.json` (die Zahlen Tag für Tag: Ist sie beschädigt, legt das Programm sie beiseite und beginnt eine neue), `license.txt`, wenn Sie eine Lizenz hinzugefügt haben, `exports\` und das Protokoll des Programms. Ein Archiv aus einer früheren Version bleibt gültig: Das bisher verwendete Konto meldet sich weiter über Git an.
 
 ## Kompilieren und testen
 

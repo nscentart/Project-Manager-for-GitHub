@@ -2,7 +2,7 @@
 
 [English](../../README.md) | [Italiano](../it/README.md) | [Français](../fr/README.md) | **Español** | [Deutsch](../de/README.md)
 
-Un programa para Windows con el que gestionas tus repos de GitHub desde sus botones, sin saber Git: crear y modificar repos, subir una carpeta, publicar releases, elegir quién trabaja en ellos. También lee lo que llega a tus repos (issues, comentarios, pull requests y los informes con el registro de errores de WeightMonitor), retiene los textos sospechosos antes de que trabajes con ellos y prepara el trabajo para una conversación de Claude Code. Y te muestra cómo va cada repo: visitas, descargas, de dónde viene la gente.
+Un programa para Windows con el que gestionas tus repos de GitHub desde sus botones, sin saber Git: crear y modificar repos, subir una carpeta, publicar releases, elegir quién trabaja en ellos. También lee lo que llega a tus repos (issues, comentarios, pull requests y los informes con el registro de errores de WeightMonitor), retiene los textos sospechosos antes de que trabajes con ellos y reúne los textos por trabajar en un archivo de texto que lees tú. Y te muestra cómo va cada repo: visitas, descargas, de dónde viene la gente.
 
 **El programa habla italiano, inglés, francés, español y alemán.** Eliges el idioma la primera vez que lo abres y puedes cambiarlo cuando quieras en **Ajustes**.
 
@@ -70,17 +70,17 @@ Los límites, sin rodeos:
 - Los errores ya guardados se quedan en el idioma en que se escribieron.
 - La categoría automática de los avisos solo entiende italiano e inglés.
 - En francés, español y alemán, el control de aduana puede dar falsas alarmas y no lo encuentra todo.
-- El registro del programa y el Paquete para Claude Code se quedan en italiano.
+- El registro del programa se queda en italiano.
 
 ## Cómo funciona
 
 1. **Inicio de sesión**: con el navegador (el device flow de GitHub, sin necesidad de Git) o con Git Credential Manager si ya lo tienes. GitHub pide permiso para leer y escribir en tus repos: el programa solo escribe cuando pulsas uno de sus botones.
 2. **Control de aduana** (`src/Dogana.cs`): cada texto pasa por reglas fijas, sin ninguna IA. Buscan caracteres invisibles y texto oculto, comentarios HTML, `<details>`, líneas de Markdown ocultas, frases dirigidas a una IA («ignora tus instrucciones», «ahora eres», marcadores de prompt), órdenes de ejecutar algo, peticiones de enviar datos, secretos, comandos de terminal, bloques de código ejecutable, menciones a bots, enlaces fuera de los sitios de confianza, enlaces engañosos, enlaces a programas y archivos comprimidos, texto codificado y alfabetos mezclados. Basta un motivo para que un texto vaya a **Cuarentena**. Estas reglas son una ayuda y no lo encuentran todo.
 3. **Cuarentena**: lees el texto con los caracteres invisibles escritos como `{U+200B}` y la lista de motivos. **Aprobar** lo mueve a **Por trabajar**, **Rechazar** lo mueve a **Archivo**. Nada de lo que contiene se puede pulsar. Si el texto cambia en GitHub después de tu decisión, vuelve a pasar por el control.
-4. **Por trabajar**: los textos que han pasado el control o que has aprobado, repartidos en logs, bugs, solicitudes, preguntas, reseñas, pull requests y otros. Los resúmenes con Ollama (un modelo en tu ordenador, gratis y sin conexión) solo arrancan desde su botón y solo con estos textos, y la respuesta también pasa por el control.
+4. **Por trabajar**: los textos que han pasado el control o que has aprobado, repartidos en logs, bugs, solicitudes, preguntas, reseñas, pull requests y otros.
 5. **Errores recurrentes**: las líneas de log agrupadas por firma (sin números ni rutas), con cuántos informes, cuántas veces y qué versiones.
-6. **Paquete para Claude Code**: un `.md` por repo en `packages\`, que también se copia al portapapeles solo cuando es de un único repo público. Los textos externos van en bloques `text`, declarados como datos y no como instrucciones, y lo que parece una clave se oculta.
-7. **Panel de repos**: a la izquierda, tus repos con la etiqueta privado o público. A la derecha, para cada uno, la **Vista general** en palabras sencillas (versión, quién lo ve, colaboradores, licencia, README, avisos, con **Qué falta** arriba) y las pestañas de antes. Arriba de la **Vista general** está **Cómo va**, descrito a continuación. **Todos los repos** lo resume todo en una tabla. El modelo de Ollama, los sitios de confianza y el idioma están en **Ajustes**. El interruptor **Sigo los avisos**, arriba, indica si sigues los avisos de ese repo.
+6. **Exportación de texto**: el botón **Exportar a un archivo de texto**, en **Por trabajar** y en **Errores recurrentes**, escribe un `.txt` por repo en `exports\` y abre la carpeta con el archivo seleccionado. De cada texto trae el tipo, el título, el autor, la fecha, el enlace y el texto, más los errores recurrentes, en palabras sencillas para leer. Lo que parece una clave se oculta, los caracteres ocultos se ven y no se copia nada al portapapeles.
+7. **Panel de repos**: a la izquierda, tus repos con la etiqueta privado o público. A la derecha, para cada uno, la **Vista general** en palabras sencillas (versión, quién lo ve, colaboradores, licencia, README, avisos, con **Qué falta** arriba) y las pestañas de antes. Arriba de la **Vista general** está **Cómo va**, descrito a continuación. **Todos los repos** lo resume todo en una tabla. Los sitios de confianza (los textos con enlaces a otros sitios esperan en **Cuarentena**) y el idioma están en **Ajustes**. El interruptor **Sigo los avisos**, arriba, indica si sigues los avisos de ese repo.
 8. **Gestionar**: la pestaña con los botones para trabajar en GitHub, descrita a continuación.
 
 ## Cómo va
@@ -101,7 +101,7 @@ Los límites, dichos con claridad:
 
 ## Repos desaparecidos
 
-Un repo que GitHub ya no lista pasa a un grupo cerrado al final, **Desaparecidos (N)**, a la izquierda y en la tabla: se abre con un clic. **Quitar de la lista**, en su página, lo quita; **Quitar todos**, en el grupo, hace lo mismo con todos los desaparecidos que ves (los de otra cuenta se quedan). La confirmación dice que en GitHub no cambia nada y cuántos textos descargados, decisiones y días de historial se pierden en este ordenador. Si un repo vuelve a GitHub, regresa solo en la siguiente actualización.
+Un repo que GitHub ya no lista pasa a un grupo cerrado al final, **Desaparecidos (N)**, a la izquierda y en la tabla: se abre con un clic. Para quitar uno de la lista, haz clic derecho sobre él a la izquierda y elige **Quitar de la lista...**, o selecciónalo y pulsa la tecla Supr; clic derecho en la fila del grupo para **Quitar todos de la lista...**, que vale para todos los desaparecidos que ves (los de otra cuenta se quedan). La pestaña **Gestionar** de un repo desaparecido también tiene un botón **Quitar de la lista**, igual que su página y el grupo en la **Vista general**. Un repo que borras desde el programa acaba aquí. La confirmación dice que en GitHub no cambia nada y cuántos textos descargados, decisiones y días de historial se pierden en este ordenador. Si un repo vuelve a GitHub, regresa solo en la siguiente actualización.
 
 ## Gestionar los repos
 
@@ -132,7 +132,7 @@ Las protecciones:
 
 ## Datos
 
-En `%LOCALAPPDATA%\ProjectManager` (o en la carpeta de la variable `PM_DATA_DIR`): `archive.json` (una copia de las issues, tus decisiones, los resúmenes, los sitios de confianza, las cuentas conectadas sin sus claves, la carpeta de los repos), `language.txt` (el idioma elegido), `history.json` (los números día a día: si se estropea, el programa lo aparta y empieza uno nuevo), `license.txt` si has añadido una licencia, `packages\` y el registro del programa. Un archivo `archive.json` de una versión anterior sigue siendo válido: la cuenta que usabas sigue entrando con Git.
+En `%LOCALAPPDATA%\ProjectManager` (o en la carpeta de la variable `PM_DATA_DIR`): `archive.json` (una copia de las issues, tus decisiones, los sitios de confianza, las cuentas conectadas sin sus claves, la carpeta de los repos), `language.txt` (el idioma elegido), `history.json` (los números día a día: si se estropea, el programa lo aparta y empieza uno nuevo), `license.txt` si has añadido una licencia, `exports\` y el registro del programa. Un archivo `archive.json` de una versión anterior sigue siendo válido: la cuenta que usabas sigue entrando con Git.
 
 ## Compilar y probar
 
