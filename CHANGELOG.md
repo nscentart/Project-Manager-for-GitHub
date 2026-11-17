@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2 (06/11/2026)
+## 1.2 (17/11/2026)
 
 - The summaries with Ollama are gone: the program no longer looks for Ollama and Settings no longer asks for a model.
 - The Claude Code package is replaced by a plain text export: the **Export to a text file** button writes one `.txt` per repo in `exports\`, with the texts to work on and the recurring errors, for you to read. Keys are still masked and hidden characters shown. Nothing is copied to the clipboard.
